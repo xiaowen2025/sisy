@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SiSy - Routine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
 <body class="bg-white text-gray-900 h-screen flex flex-col overflow-hidden">
 
     <!-- Header -->
-    <header class="px-6 pt-12 pb-4 flex justify-between items-end border-b border-gray-50">
+    <header class="px-6 pt-12 pb-4 flex justify-between items-end border-b border-gray-50 max-w-md mx-auto w-full">
         <div>
             <h1 class="text-2xl font-semibold tracking-tight">Daily Routine</h1>
             <p class="text-sm text-gray-400 mt-1">Your default day structure</p>
@@ -25,72 +25,91 @@
         </button>
     </header>
 
-    <!-- Routine List -->
-    <main class="flex-1 overflow-y-auto p-6 space-y-4">
+    <!-- Main Content Area -->
+    <main class="flex-1 relative flex flex-col overflow-hidden w-full max-w-md mx-auto">
+        <!-- Routine List -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-4">
 
-        <!-- Routine Item 1 -->
-        <div class="group flex items-start justify-between py-3 border-b border-gray-50">
-            <div class="flex-1">
-                <input type="text" value="Morning Wake Up" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-                <input type="text" value="07:00 - 07:30" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+            <!-- Routine Item 1 -->
+            <div class="group flex items-start justify-between py-3 border-b border-gray-50">
+                <div class="flex-1">
+                    <input type="text" value="Morning Wake Up" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                    <input type="text" value="07:00 - 07:30" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                </div>
+                <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
             </div>
-            <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-            </button>
+
+            <!-- Routine Item 2 -->
+            <div class="group flex items-start justify-between py-3 border-b border-gray-50">
+                <div class="flex-1">
+                    <input type="text" value="Deep Work Block" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                    <input type="text" value="09:00 - 11:30" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                </div>
+                <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Routine Item 3 -->
+            <div class="group flex items-start justify-between py-3 border-b border-gray-50">
+                <div class="flex-1">
+                    <input type="text" value="Lunch" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                    <input type="text" value="12:00 - 13:00" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                </div>
+                <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
+
+             <!-- Routine Item 4 -->
+             <div class="group flex items-start justify-between py-3 border-b border-gray-50">
+                <div class="flex-1">
+                    <input type="text" value="Exercise" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                    <input type="text" value="17:00 - 18:00" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                </div>
+                <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
         </div>
 
-        <!-- Routine Item 2 -->
-        <div class="group flex items-start justify-between py-3 border-b border-gray-50">
-            <div class="flex-1">
-                <input type="text" value="Deep Work Block" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-                <input type="text" value="09:00 - 11:30" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+        <!-- Chat Drawer (Overlay on Main Content) -->
+        <div id="chat-drawer" class="absolute inset-x-0 bottom-0 bg-white border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] h-0 transition-[height] duration-300 ease-out overflow-hidden z-20 rounded-t-3xl">
+             <div class="flex flex-col h-full">
+                <div class="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center shrink-0">
+                    <span class="text-xs font-semibold tracking-wider uppercase text-gray-500">History</span>
+                    <button onclick="toggleChatDrawer()" class="text-gray-400 p-2 -mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-white">
+                    <!-- Chat content would go here -->
+                </div>
             </div>
-            <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-            </button>
         </div>
-
-        <!-- Routine Item 3 -->
-        <div class="group flex items-start justify-between py-3 border-b border-gray-50">
-            <div class="flex-1">
-                <input type="text" value="Lunch" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-                <input type="text" value="12:00 - 13:00" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-            </div>
-            <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-            </button>
-        </div>
-
-         <!-- Routine Item 4 -->
-         <div class="group flex items-start justify-between py-3 border-b border-gray-50">
-            <div class="flex-1">
-                <input type="text" value="Exercise" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-                <input type="text" value="17:00 - 18:00" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-            </div>
-            <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-            </button>
-        </div>
-
     </main>
 
     <!-- Omni-Chat Layer -->
-    <div class="w-full px-4 pb-2 bg-white">
-        <div class="relative">
+    <div class="w-full px-4 pb-2 bg-white relative z-30 max-w-md mx-auto">
+        <div class="relative shadow-sm rounded-2xl">
             <input type="text"
                 placeholder="Adjust routine..."
-                class="w-full bg-gray-50 border-none rounded-2xl py-3 px-4 text-lg focus:ring-2 focus:ring-gray-200 focus:outline-none transition-shadow"
+                class="w-full bg-gray-50 border-none rounded-2xl py-3 px-4 text-lg focus:ring-2 focus:ring-gray-200 focus:outline-none transition-shadow placeholder-gray-400"
                 onclick="toggleChatDrawer()"
             >
-             <button class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+             <button class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
@@ -98,25 +117,9 @@
         </div>
     </div>
 
-     <!-- Chat Drawer (Identical across pages) -->
-     <div id="chat-drawer" class="fixed inset-x-0 bottom-[140px] bg-white border-t border-gray-100 shadow-lg transform translate-y-full transition-transform duration-300 h-1/2 rounded-t-3xl overflow-hidden flex flex-col z-20">
-        <div class="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-            <span class="text-xs font-semibold tracking-wider uppercase text-gray-500">History</span>
-            <button onclick="toggleChatDrawer()" class="text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-        <div class="flex-1 overflow-y-auto p-4 space-y-3">
-             <!-- Chat content would go here -->
-        </div>
-    </div>
-
-
     <!-- Bottom Navigation -->
-    <nav class="bg-white border-t border-gray-100 pb-safe pt-2">
-        <div class="flex justify-around items-center h-16">
+    <nav class="bg-white border-t border-gray-100 pb-8 pt-2 relative z-30">
+        <div class="flex justify-around items-center h-14 max-w-md mx-auto">
             <!-- Home -->
             <a href="home.html" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -146,10 +149,10 @@
     <script>
         function toggleChatDrawer() {
             const drawer = document.getElementById('chat-drawer');
-            if (drawer.classList.contains('translate-y-full')) {
-                drawer.classList.remove('translate-y-full');
+            if (drawer.style.height === '50%') {
+                drawer.style.height = '0';
             } else {
-                drawer.classList.add('translate-y-full');
+                drawer.style.height = '50%';
             }
         }
     </script>

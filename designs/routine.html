@@ -27,59 +27,93 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 relative flex flex-col overflow-hidden w-full max-w-md mx-auto">
-        <!-- Routine List -->
-        <div class="flex-1 overflow-y-auto p-6 space-y-4">
+        <!-- Routine List with Timeline -->
+        <div class="flex-1 overflow-y-auto p-6">
 
-            <!-- Routine Item 1 -->
-            <div class="group flex items-start justify-between py-3 border-b border-gray-50">
-                <div class="flex-1">
-                    <input type="text" value="Morning Wake Up" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-                    <input type="text" value="07:00 - 07:30" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-                </div>
-                <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
-            </div>
+            <div class="relative pl-6 space-y-8">
+                <!-- Vertical Timeline Line -->
+                <div class="absolute left-[7px] top-3 bottom-3 w-px bg-gray-200"></div>
 
-            <!-- Routine Item 2 -->
-            <div class="group flex items-start justify-between py-3 border-b border-gray-50">
-                <div class="flex-1">
-                    <input type="text" value="Deep Work Block" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-                    <input type="text" value="09:00 - 11:30" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-                </div>
-                <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
-            </div>
+                <!-- Routine Item 1 -->
+                <div class="relative group">
+                    <!-- Dot -->
+                    <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-gray-900 ring-4 ring-white z-10"></div>
 
-            <!-- Routine Item 3 -->
-            <div class="group flex items-start justify-between py-3 border-b border-gray-50">
-                <div class="flex-1">
-                    <input type="text" value="Lunch" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-                    <input type="text" value="12:00 - 13:00" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                             <div class="flex items-baseline space-x-2">
+                                <input type="text" value="07:00" class="w-12 text-sm font-semibold text-gray-900 bg-transparent focus:outline-none focus:text-blue-600 transition-colors">
+                                <input type="text" value="Morning Wake Up" class="flex-1 font-normal text-gray-700 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                            </div>
+                        </div>
+                        <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 -mt-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
-                <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
-            </div>
 
-             <!-- Routine Item 4 -->
-             <div class="group flex items-start justify-between py-3 border-b border-gray-50">
-                <div class="flex-1">
-                    <input type="text" value="Exercise" class="w-full font-medium bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
-                    <input type="text" value="17:00 - 18:00" class="w-full text-sm text-gray-400 mt-1 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                <!-- Routine Item 2 -->
+                <div class="relative group">
+                     <!-- Dot -->
+                     <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-gray-300 ring-4 ring-white z-10"></div>
+
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-baseline space-x-2">
+                                <input type="text" value="09:00" class="w-12 text-sm font-semibold text-gray-900 bg-transparent focus:outline-none focus:text-blue-600 transition-colors">
+                                <input type="text" value="Deep Work Block" class="flex-1 font-normal text-gray-700 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                            </div>
+                        </div>
+                        <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 -mt-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
-                <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
+
+                <!-- Routine Item 3 -->
+                <div class="relative group">
+                     <!-- Dot -->
+                     <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-gray-300 ring-4 ring-white z-10"></div>
+
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                             <div class="flex items-baseline space-x-2">
+                                <input type="text" value="12:00" class="w-12 text-sm font-semibold text-gray-900 bg-transparent focus:outline-none focus:text-blue-600 transition-colors">
+                                <input type="text" value="Lunch" class="flex-1 font-normal text-gray-700 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                            </div>
+                        </div>
+                        <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 -mt-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                 <!-- Routine Item 4 -->
+                 <div class="relative group">
+                     <!-- Dot -->
+                     <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-gray-300 ring-4 ring-white z-10"></div>
+
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                             <div class="flex items-baseline space-x-2">
+                                <input type="text" value="17:00" class="w-12 text-sm font-semibold text-gray-900 bg-transparent focus:outline-none focus:text-blue-600 transition-colors">
+                                <input type="text" value="Exercise" class="flex-1 font-normal text-gray-700 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                            </div>
+                        </div>
+                        <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 -mt-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
 

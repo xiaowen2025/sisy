@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SiSy - Routine</title>
+    <title>SiSy - Routine (Priority)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
@@ -34,16 +34,16 @@
                 <!-- Vertical Timeline Line -->
                 <div class="absolute left-[7px] top-3 bottom-3 w-px bg-gray-200"></div>
 
-                <!-- Routine Item 1 -->
+                <!-- Routine Item 1: Morning Wake Up (De-emphasized) -->
                 <div class="relative group">
-                    <!-- Dot -->
-                    <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-gray-900 ring-4 ring-white z-10"></div>
+                    <!-- Dot (Lighter gray) -->
+                    <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-gray-200 ring-4 ring-white z-10"></div>
 
                     <div class="flex items-start justify-between">
                         <div class="flex-1">
                              <div class="flex items-baseline space-x-2">
-                                <input type="text" value="07:00" class="w-12 text-sm font-semibold text-gray-900 bg-transparent focus:outline-none focus:text-blue-600 transition-colors">
-                                <input type="text" value="Morning Wake Up" class="flex-1 font-normal text-gray-700 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                                <input type="text" value="07:00" class="w-12 text-sm font-semibold text-gray-400 bg-transparent focus:outline-none focus:text-blue-600 transition-colors">
+                                <input type="text" value="Morning Wake Up" class="flex-1 font-normal text-gray-400 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
                             </div>
                         </div>
                         <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 -mt-1">
@@ -54,9 +54,9 @@
                     </div>
                 </div>
 
-                <!-- Routine Item 2 -->
+                <!-- Routine Item 2: Deep Work Block (Standard) -->
                 <div class="relative group">
-                     <!-- Dot -->
+                     <!-- Dot (Standard gray) -->
                      <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-gray-300 ring-4 ring-white z-10"></div>
 
                     <div class="flex items-start justify-between">
@@ -74,16 +74,16 @@
                     </div>
                 </div>
 
-                <!-- Routine Item 3 -->
+                <!-- Routine Item 3: Lunch (De-emphasized) -->
                 <div class="relative group">
-                     <!-- Dot -->
-                     <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-gray-300 ring-4 ring-white z-10"></div>
+                     <!-- Dot (Lighter gray) -->
+                     <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-gray-200 ring-4 ring-white z-10"></div>
 
                     <div class="flex items-start justify-between">
                         <div class="flex-1">
                              <div class="flex items-baseline space-x-2">
-                                <input type="text" value="12:00" class="w-12 text-sm font-semibold text-gray-900 bg-transparent focus:outline-none focus:text-blue-600 transition-colors">
-                                <input type="text" value="Lunch" class="flex-1 font-normal text-gray-700 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                                <input type="text" value="12:00" class="w-12 text-sm font-semibold text-gray-400 bg-transparent focus:outline-none focus:text-blue-600 transition-colors">
+                                <input type="text" value="Lunch" class="flex-1 font-normal text-gray-400 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
                             </div>
                         </div>
                         <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 -mt-1">
@@ -94,16 +94,16 @@
                     </div>
                 </div>
 
-                 <!-- Routine Item 4 -->
+                 <!-- Routine Item 4: Exercise (Emphasized) -->
                  <div class="relative group">
-                     <!-- Dot -->
-                     <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-gray-300 ring-4 ring-white z-10"></div>
+                     <!-- Dot (Black, larger?) -->
+                     <div class="absolute -left-[23px] top-1.5 h-3 w-3 rounded-full bg-black ring-4 ring-white z-10"></div>
 
                     <div class="flex items-start justify-between">
                         <div class="flex-1">
                              <div class="flex items-baseline space-x-2">
-                                <input type="text" value="17:00" class="w-12 text-sm font-semibold text-gray-900 bg-transparent focus:outline-none focus:text-blue-600 transition-colors">
-                                <input type="text" value="Exercise" class="flex-1 font-normal text-gray-700 bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
+                                <input type="text" value="17:00" class="w-12 text-sm font-bold text-black bg-transparent focus:outline-none focus:text-blue-600 transition-colors">
+                                <input type="text" value="Exercise" class="flex-1 font-semibold text-black bg-transparent focus:outline-none focus:border-b focus:border-gray-300 transition-colors">
                             </div>
                         </div>
                         <button class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 -mt-1">

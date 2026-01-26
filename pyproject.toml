@@ -1,0 +1,10 @@
+ [project]
+ name = "sisy-designs"
+ version = "0.1.0"
+ description = "Tools for reproducing SiSy design screenshots."
+ readme = "docs/v0.md"
+ requires-python = ">=3.11"
+ dependencies = [
+   "playwright>=1.41",
+ ]
+ 

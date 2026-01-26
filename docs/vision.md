@@ -11,6 +11,10 @@
 - **Design Language:** **Extreme Minimalism**
     
 - **Interaction Mood:** Like an old friend—present when needed, invisible when you are focused.
+
+- **Attention management (visual):**
+  - SiSy should use an **attention gradient**: routine items that can be safely “autopiloted” (auto-completable) are rendered lighter, so deliberate effort items naturally stand out.
+  - The currently edited/active item becomes the focus target (stronger text / stronger timeline marker).
     
 ## 2. Core Loop: Dynamic Evolution
 
@@ -48,6 +52,8 @@ When life happens (fatigue, sudden overtime, etc.):
 - **Instant Rewrite:** AI instantly recalculates the rest of the day to ensure the plan remains viable.
     
 - **Profile Evolution:** Adjustments are saved to the "Long-term Profile" (e.g., the system learns the user has low energy on Tuesday afternoons).
+
+- **Autopilot vs deliberate:** As the system learns, it can suggest marking stable routine elements (e.g. “wake up”) as **auto-completable**, reducing visual noise and keeping attention on higher-effort behaviors (e.g. “exercise”).
     
 
 ---

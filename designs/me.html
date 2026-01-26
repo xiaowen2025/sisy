@@ -15,32 +15,35 @@
     <!-- Header -->
     <header class="px-6 pt-12 pb-4 border-b border-gray-50 max-w-md mx-auto w-full">
         <h1 class="text-2xl font-semibold tracking-tight">Profile</h1>
-        <p class="text-sm text-gray-400 mt-1">What SiSy knows about you</p>
     </header>
 
     <!-- Main Content Area -->
     <main class="flex-1 relative flex flex-col overflow-hidden w-full max-w-md mx-auto">
         <!-- Profile Sections -->
-        <div class="flex-1 overflow-y-auto p-6 space-y-8">
+        <div class="flex-1 overflow-y-auto p-5 pb-24 space-y-6">
 
             <!-- Section: Basics -->
             <section>
-                <h2 class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Basics</h2>
-                <div class="space-y-4">
-                    <div class="group relative">
-                        <label class="block text-xs text-gray-400 mb-1">Gender</label>
-                        <p class="text-lg font-normal border-b border-transparent group-hover:border-gray-200 transition-colors cursor-text" contenteditable="true">Male</p>
-                        <button class="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <h2 class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Basics</h2>
+                <div class="divide-y divide-gray-100">
+                    <div class="group flex items-start gap-4 py-2">
+                        <div class="w-24 shrink-0 pt-1">
+                            <span class="block text-xs font-semibold uppercase tracking-wide text-gray-400">Gender</span>
+                        </div>
+                        <p class="flex-1 min-w-0 text-lg font-normal text-gray-900 text-right leading-snug cursor-text truncate" contenteditable="true">Male</p>
+                        <button aria-label="Remove Gender" class="shrink-0 pt-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                         </button>
                     </div>
-                     <div class="group relative">
-                        <label class="block text-xs text-gray-400 mb-1">Age</label>
-                        <p class="text-lg font-normal border-b border-transparent group-hover:border-gray-200 transition-colors cursor-text" contenteditable="true">28</p>
-                         <button class="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="group flex items-start gap-4 py-2">
+                        <div class="w-24 shrink-0 pt-1">
+                            <span class="block text-xs font-semibold uppercase tracking-wide text-gray-400">Age</span>
+                        </div>
+                        <p class="flex-1 min-w-0 text-lg font-normal text-gray-900 text-right leading-snug cursor-text truncate" contenteditable="true">28</p>
+                        <button aria-label="Remove Age" class="shrink-0 pt-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                         </button>
@@ -50,31 +53,37 @@
 
              <!-- Section: Health -->
             <section>
-                <h2 class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Health</h2>
-                <div class="space-y-4">
-                    <div class="group relative">
-                        <label class="block text-xs text-gray-400 mb-1">Weight</label>
-                        <p class="text-lg font-normal border-b border-transparent group-hover:border-gray-200 transition-colors cursor-text" contenteditable="true">75 kg</p>
-                         <button class="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <h2 class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Health</h2>
+                <div class="divide-y divide-gray-100">
+                    <div class="group flex items-start gap-4 py-2">
+                        <div class="w-24 shrink-0 pt-1">
+                            <span class="block text-xs font-semibold uppercase tracking-wide text-gray-400">Weight</span>
+                        </div>
+                        <p class="flex-1 min-w-0 text-lg font-normal text-gray-900 text-right leading-snug cursor-text truncate" contenteditable="true">75 kg</p>
+                        <button aria-label="Remove Weight" class="shrink-0 pt-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                         </button>
                     </div>
-                     <div class="group relative">
-                        <label class="block text-xs text-gray-400 mb-1">Height</label>
-                        <p class="text-lg font-normal border-b border-transparent group-hover:border-gray-200 transition-colors cursor-text" contenteditable="true">180 cm</p>
-                         <button class="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="group flex items-start gap-4 py-2">
+                        <div class="w-24 shrink-0 pt-1">
+                            <span class="block text-xs font-semibold uppercase tracking-wide text-gray-400">Height</span>
+                        </div>
+                        <p class="flex-1 min-w-0 text-lg font-normal text-gray-900 text-right leading-snug cursor-text truncate" contenteditable="true">180 cm</p>
+                        <button aria-label="Remove Height" class="shrink-0 pt-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                         </button>
                     </div>
-                     <div class="group relative">
-                        <label class="block text-xs text-gray-400 mb-1">Body Fat</label>
-                        <p class="text-lg font-normal border-b border-transparent group-hover:border-gray-200 transition-colors cursor-text" contenteditable="true">15%</p>
-                         <button class="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="group flex items-start gap-4 py-2">
+                        <div class="w-24 shrink-0 pt-1">
+                            <span class="block text-xs font-semibold uppercase tracking-wide text-gray-400">Body Fat</span>
+                        </div>
+                        <p class="flex-1 min-w-0 text-lg font-normal text-gray-900 text-right leading-snug cursor-text truncate" contenteditable="true">15%</p>
+                        <button aria-label="Remove Body Fat" class="shrink-0 pt-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                         </button>
@@ -84,22 +93,26 @@
 
             <!-- Section: Preferences -->
             <section>
-                 <h2 class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Preferences</h2>
-                 <div class="space-y-4">
-                    <div class="group relative">
-                        <label class="block text-xs text-gray-400 mb-1">Work Style</label>
-                        <p class="text-lg font-normal border-b border-transparent group-hover:border-gray-200 transition-colors cursor-text" contenteditable="true">Prefers deep work in the morning. Meetings in the afternoon.</p>
-                         <button class="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <h2 class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Preferences</h2>
+                 <div class="divide-y divide-gray-100">
+                    <div class="group flex items-start gap-4 py-2">
+                        <div class="w-24 shrink-0 pt-1">
+                            <span class="block text-xs font-semibold uppercase tracking-wide text-gray-400">Work Style</span>
+                        </div>
+                        <p class="flex-1 min-w-0 text-lg font-normal text-gray-900 text-right leading-snug cursor-text truncate" contenteditable="true">Prefers deep work in the morning. Meetings in the afternoon.</p>
+                        <button aria-label="Remove Work Style" class="shrink-0 pt-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                         </button>
                     </div>
-                     <div class="group relative">
-                        <label class="block text-xs text-gray-400 mb-1">Energy Levels</label>
-                        <p class="text-lg font-normal border-b border-transparent group-hover:border-gray-200 transition-colors cursor-text" contenteditable="true">Low energy after 8 PM.</p>
-                         <button class="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="group flex items-start gap-4 py-2">
+                        <div class="w-24 shrink-0 pt-1">
+                            <span class="block text-xs font-semibold uppercase tracking-wide text-gray-400">Energy</span>
+                        </div>
+                        <p class="flex-1 min-w-0 text-lg font-normal text-gray-900 text-right leading-snug cursor-text truncate" contenteditable="true">Low energy after 8 PM.</p>
+                        <button aria-label="Remove Energy Levels" class="shrink-0 pt-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                         </button>
@@ -130,7 +143,7 @@
     <div class="w-full px-4 pb-2 bg-white relative z-30 max-w-md mx-auto">
         <div class="relative shadow-sm rounded-2xl">
             <input type="text"
-                placeholder="Sisy is here for you ..."
+                placeholder="know yourself better"
                 class="w-full bg-gray-50 border-none rounded-2xl py-3 px-4 text-lg focus:ring-2 focus:ring-gray-200 focus:outline-none transition-shadow placeholder-gray-400"
                 onclick="toggleChatDrawer()"
             >

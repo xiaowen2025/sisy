@@ -1,0 +1,366 @@
+import React, { useState } from 'react';
+import { Alert, Modal, Platform, Pressable, StyleSheet, TextInput, View, ScrollView } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import * as Clipboard from 'expo-clipboard';
+
+import { Text } from '@/components/Themed';
+import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
+import { useAppState } from '@/lib/appState';
+
+export default function SettingsScreen() {
+    const colorScheme = useColorScheme();
+    const theme = Colors[colorScheme ?? 'light'];
+    const { loadRoutineTemplate, loadWellnessTemplate, routine, profile, importRoutine, importProfile } = useAppState();
+
+    const [importVisible, setImportVisible] = useState(false);
+    const [importMode, setImportMode] = useState<'routine' | 'profile'>('routine');
+    const [importText, setImportText] = useState('');
+
+    // Confirmation state for Wellness Template
+    const [wellnessConfirmVisible, setWellnessConfirmVisible] = useState(false);
+
+    function handleLoadTemplate() {
+        if (Platform.OS === 'web') {
+            if (window.confirm('Load Default Template? This will merge the default routine into your current schedule.')) {
+                loadRoutineTemplate();
+                window.alert('Default routine template loaded.');
+            }
+        } else {
+            Alert.alert(
+                'Load Default Template?',
+                'This will merge the default routine into your current schedule. Existing items will be kept, but duplicates might be created if they match exactly.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Load Template',
+                        onPress: () => {
+                            loadRoutineTemplate();
+                            Alert.alert('Done', 'Default routine template loaded.');
+                        }
+                    },
+                ]
+            );
+        }
+    }
+
+    function confirmLoadWellness() {
+        setWellnessConfirmVisible(false);
+        loadWellnessTemplate();
+        if (Platform.OS === 'web') {
+            window.alert('Loaded!');
+        } else {
+            Alert.alert('Loaded!');
+        }
+    }
+
+    async function handleExportRoutine() {
+        const json = JSON.stringify(routine, null, 2);
+        await Clipboard.setStringAsync(json);
+        Alert.alert('Copied', 'Routine data copied to clipboard.');
+    }
+
+    async function handleExportProfile() {
+        const json = JSON.stringify(profile, null, 2);
+        await Clipboard.setStringAsync(json);
+        Alert.alert('Copied', 'Profile data copied to clipboard.');
+    }
+
+    function handleImportSubmit() {
+        if (!importText.trim()) return;
+        if (importMode === 'routine') {
+            importRoutine(importText);
+        } else {
+            importProfile(importText);
+        }
+        setImportVisible(false);
+        setImportText('');
+    }
+
+    const borderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+
+    const SettingsRow = ({ icon, label, onPress, destructive = false }: { icon: any, label: string, onPress: () => void, destructive?: boolean }) => (
+        <Pressable
+            onPress={onPress}
+            style={({ pressed }) => [
+                styles.row,
+                {
+                    backgroundColor: pressed ? (colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)') : 'transparent'
+                }
+            ]}>
+            <View style={styles.rowContent}>
+                <View style={[styles.iconContainer, { backgroundColor: destructive ? 'rgba(239,68,68,0.1)' : (colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') }]}>
+                    <FontAwesome name={icon} size={16} color={destructive ? '#ef4444' : theme.tint} />
+                </View>
+                <Text style={[styles.rowText, destructive && { color: '#ef4444' }]}>{label}</Text>
+            </View>
+            <FontAwesome name="chevron-right" size={12} color={theme.text} style={{ opacity: 0.3 }} />
+        </Pressable>
+    );
+
+    return (
+        <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+            <Text style={styles.pageTitle}>Settings</Text>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionHeader}>Templates</Text>
+                <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+                    <SettingsRow
+                        icon="download"
+                        label="Load Default Routine"
+                        onPress={handleLoadTemplate}
+                    />
+                    <View style={[styles.separator, { backgroundColor: borderColor }]} />
+                    <SettingsRow
+                        icon="heartbeat"
+                        label="Load Wellness Template"
+                        onPress={() => setWellnessConfirmVisible(true)}
+                    />
+                </View>
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionHeader}>Data & Sync</Text>
+                <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+                    <SettingsRow
+                        icon="copy"
+                        label="Export Routine (Copy JSON)"
+                        onPress={handleExportRoutine}
+                    />
+                    <View style={[styles.separator, { backgroundColor: borderColor }]} />
+                    <SettingsRow
+                        icon="paste"
+                        label="Import Routine (Paste JSON)"
+                        onPress={() => { setImportMode('routine'); setImportVisible(true); }}
+                    />
+                    <View style={[styles.separator, { backgroundColor: borderColor }]} />
+                    <SettingsRow
+                        icon="user-circle-o"
+                        label="Export Profile (Copy JSON)"
+                        onPress={handleExportProfile}
+                    />
+                    <View style={[styles.separator, { backgroundColor: borderColor }]} />
+                    <SettingsRow
+                        icon="user-plus"
+                        label="Import Profile (Paste JSON)"
+                        onPress={() => { setImportMode('profile'); setImportVisible(true); }}
+                    />
+                </View>
+            </View>
+
+            <View style={{ height: 100 }} />
+
+            <Modal animationType="slide" visible={importVisible} presentationStyle="pageSheet" onRequestClose={() => setImportVisible(false)}>
+                <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Import {importMode === 'routine' ? 'Routine' : 'Profile'}</Text>
+                        <Pressable onPress={() => setImportVisible(false)} hitSlop={10}>
+                            <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Cancel</Text>
+                        </Pressable>
+                    </View>
+                    <View style={{ padding: 20, flex: 1 }}>
+                        <Text style={[styles.modalLabel, { color: theme.text }]}>Paste JSON Data</Text>
+                        <TextInput
+                            style={[styles.textArea, {
+                                color: theme.text,
+                                backgroundColor: theme.cardBackground,
+                                borderColor: borderColor
+                            }]}
+                            multiline
+                            value={importText}
+                            onChangeText={setImportText}
+                            placeholder="{ ... }"
+                            placeholderTextColor={colorScheme === 'dark' ? '#555' : '#999'}
+                            autoCapitalize="none"
+                        />
+                        <Pressable
+                            onPress={handleImportSubmit}
+                            style={({ pressed }) => [styles.importBtn, { backgroundColor: theme.tint, opacity: pressed ? 0.9 : 1 }]}
+                        >
+                            <Text style={styles.importBtnText}>Import Data</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Wellness Confirmation Modal - Custom UI */}
+            <Modal animationType="fade" transparent visible={wellnessConfirmVisible} onRequestClose={() => setWellnessConfirmVisible(false)}>
+                <View style={styles.centeredModalOverlay}>
+                    <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
+                        <View style={styles.alertContent}>
+                            <Text style={[styles.alertTitle, { color: theme.text }]}>Load Wellness Template?</Text>
+                            <Text style={[styles.alertMessage, { color: theme.text }]}>
+                                This will replace your current routine structure with a wellness-focused schedule.
+                            </Text>
+                        </View>
+
+                        <View style={[styles.alertButtons, { borderTopColor: borderColor }]}>
+                            <Pressable
+                                onPress={() => setWellnessConfirmVisible(false)}
+                                style={styles.alertButton}
+                            >
+                                <Text style={[styles.alertButtonText, { color: theme.text, opacity: 0.7 }]}>Cancel</Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={confirmLoadWellness}
+                                style={[styles.alertButton, { borderLeftWidth: 1, borderLeftColor: borderColor }]}
+                            >
+                                <Text style={[styles.alertButtonText, { color: theme.tint, fontWeight: '600' }]}>Load</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        </ScrollView>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingTop: 60,
+    },
+    pageTitle: {
+        fontSize: 34,
+        fontWeight: '700',
+        marginBottom: 32,
+        letterSpacing: -0.5,
+    },
+    section: {
+        marginBottom: 32,
+    },
+    sectionHeader: {
+        fontSize: 13,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 1.2,
+        opacity: 0.5,
+        marginBottom: 12,
+        marginLeft: 4,
+    },
+    card: {
+        borderRadius: 16,
+        overflow: 'hidden',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 16,
+        minHeight: 64,
+    },
+    rowContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    iconContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rowText: {
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    separator: {
+        height: 1,
+        width: '100%',
+        marginLeft: 64, // Indent separator to text start
+    },
+
+    // Modal Styles
+    modalContainer: {
+        flex: 1,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    modalLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        opacity: 0.6,
+        marginBottom: 8,
+    },
+    textArea: {
+        flex: 1,
+        borderWidth: 1,
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 14,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        marginBottom: 16,
+    },
+    importBtn: {
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    importBtnText: {
+        color: 'white',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+
+    // Alert Styles
+    centeredModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    alertBox: {
+        width: '100%',
+        maxWidth: 320,
+        borderRadius: 20,
+        overflow: 'hidden',
+    },
+    alertContent: {
+        padding: 24,
+        alignItems: 'center',
+    },
+    alertTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: 8,
+    },
+    alertMessage: {
+        fontSize: 14,
+        textAlign: 'center',
+        opacity: 0.7,
+        lineHeight: 20,
+    },
+    alertButtons: {
+        flexDirection: 'row',
+        borderTopWidth: 1,
+        height: 50,
+    },
+    alertButton: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    alertButtonText: {
+        fontSize: 16,
+        fontWeight: '500',
+    },
+});

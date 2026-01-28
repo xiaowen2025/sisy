@@ -12,8 +12,10 @@
     
 - **Interaction Mood:** Like an old friend—present when needed, invisible when you are focused.
 
-- **Attention management (visual):**
-  - SiSy should use an **attention gradient**: routine items that can be safely “autopiloted” (auto-completable) are rendered lighter, so deliberate effort items naturally stand out.
+- **Attention management (visual & temporal):**
+  - SiSy should use an **attention gradient**: routine items that can be safely “autopiloted” (auto-completable) are rendered lighter.
+  - **Smart Visibility:** Auto-complete items disappear from the primary "Now" view once their time has passed, assuming implicit completion.
+  - **Foresight:** The "Next" indicator prioritizes showing the next **deliberate** (non-auto-complete) action to keep the user oriented on what matters.
   - The currently edited/active item becomes the focus target (stronger text / stronger timeline marker).
     
 ## 2. Core Loop: Dynamic Evolution
@@ -35,7 +37,7 @@ To lower the entry barrier, SiSy builds user profiles multi-dimensionally:
     
     - **Flexible Goals:** User enters $Goal \rightarrow$ AI generates a "fuzzy" draft (leaves breathing room rather than minute-by-minute precision).
         
-    - **Routine Import:** Import any format; AI adapts it and offers optimization suggestions.
+    - **Routine Import:** Import any format (via Settings); AI adapts it and offers optimization suggestions.
         
 
 ### Phase B: Real-time Feedback
@@ -82,4 +84,4 @@ When life happens (fatigue, sudden overtime, etc.):
 - **Reschedule:** one gesture to push/pull time, with lightweight confirmation.
 - **Learn:** store simple signals (completion, postponement reason, energy level) into a basic profile.
 
-> Note: `sisy/docs/v0.md` describes the initial UI modules (Omni-Chat + Home/Routine/Me). This doc defines the “why” and the adaptive loop; `v0.md` defines the first “what” to build.
+> Note: `sisy/docs/v0.md` describes the initial UI modules (Chat + Present/Routine/Me/Settings). This doc defines the “why” and the adaptive loop; `v0.md` defines the first “what” to build.

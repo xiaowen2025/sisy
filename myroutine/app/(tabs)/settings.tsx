@@ -100,7 +100,7 @@ export default function SettingsScreen() {
 
     return (
         <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-            <Text style={styles.pageTitle}>Settings</Text>
+
 
             <View style={styles.section}>
                 <Text style={styles.sectionHeader}>Templates</Text>

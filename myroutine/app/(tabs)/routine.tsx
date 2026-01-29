@@ -25,7 +25,6 @@ export default function RoutineScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={styles.pageTitle}>My Routine</Text>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.timeline}>

@@ -1,14 +1,34 @@
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet, LayoutAnimation, UIManager } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
-import Reanimated, { SharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import Reanimated, {
+  SharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+  useSharedValue,
+  withSpring,
+  runOnJS
+} from 'react-native-reanimated';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Text, View } from '@/components/Themed';
 import { useAppState } from '@/lib/appState';
 import { RescheduleModal } from '@/components/RescheduleModal';
 import { TaskDetailModal } from '@/components/TaskDetailModal';
+import { CompletionModal } from '@/components/CompletionModal';
 import { useEffect, useState } from 'react';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { Task } from '@/lib/types';
 
 function formatTimeLabel(iso: string | null): string {
   if (!iso) return 'Now';
@@ -17,30 +37,81 @@ function formatTimeLabel(iso: string | null): string {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-export default function PresentScreen() {
-  const { nowTask, nextTask, completeTask } = useAppState();
-  const [rescheduleVisible, setRescheduleVisible] = useState(false);
-  const [detailVisible, setDetailVisible] = useState(false);
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
+// --- TaskCard Component ---
+const TaskCard = ({
+  task,
+  index,
+  nowIndex,
+  translationY,
+  onPress,
+  onComplete,
+  onReschedule
+}: {
+  task: Task,
+  index: number,
+  nowIndex: number,
+  translationY: SharedValue<number>,
+  onPress: () => void,
+  onComplete: () => void,
+  onReschedule: () => void
+}) => {
+  const isNow = index === nowIndex;
+  const isCompleted = task.status === 'done';
 
-  // Safety: If the task changes (e.g. completed/skipped), close the detail view.
-  // This prevents the next task's details from automatically appearing if the modal was open (or ghost state).
-  useEffect(() => {
-    setDetailVisible(false);
-  }, [nowTask?.id]);
+  // Relative position logic
+  // relativeIndex > 0 means "Next/Below", < 0 means "Past/Above"
+  const relativeIndex = nowIndex === -1 ? 0 : index - nowIndex;
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const drag = translationY.value;
+
+    const spacing = 90;
+    const baseTransY = relativeIndex * spacing;
+    const finalY = baseTransY + drag;
+
+    const dist = Math.abs(finalY);
+
+    const scale = interpolate(dist, [0, spacing], [1, 0.95], Extrapolation.CLAMP);
+    const opacity = interpolate(dist, [0, spacing, spacing * 2.5], [1, 0.4, 0], Extrapolation.CLAMP);
+    const zIndex = 100 - Math.round(dist);
+
+    return {
+      transform: [
+        { translateY: finalY },
+        { scale: scale }
+      ],
+      opacity,
+      zIndex,
+    };
+  });
+
+  const innerCard = (
+    <View style={styles.card}>
+      <Text style={styles.time}>{formatTimeLabel(task.scheduled_time)}</Text>
+      <Text
+        style={[
+          styles.title,
+          isCompleted && { textDecorationLine: 'line-through', opacity: 0.6 }
+        ]}
+        numberOfLines={1}
+      >
+        {task.title}
+      </Text>
+      {isCompleted && (
+        <Ionicons name="checkmark-circle" size={24} color={Colors.light.tint} style={{ position: 'absolute', right: 0, top: 18 }} />
+      )}
+    </View>
+  );
 
   function RightAction(prog: SharedValue<number>, drag: SharedValue<number>) {
     const styleAnimation = useAnimatedStyle(() => {
-      return {
-        transform: [{ translateX: drag.value + 100 }],
-      };
+      const trans = interpolate(drag.value, [0, -80], [80, 0], Extrapolation.CLAMP);
+      return { transform: [{ translateX: trans }] };
     });
-
     return (
-      <Reanimated.View style={styleAnimation}>
+      <Reanimated.View style={[styleAnimation, { flexDirection: 'row' }]}>
         <View style={styles.rightAction}>
-          <Text style={styles.actionText}>Reschedule</Text>
+          <Ionicons name="time" size={32} color="white" />
         </View>
       </Reanimated.View>
     );
@@ -48,100 +119,184 @@ export default function PresentScreen() {
 
   function LeftAction(prog: SharedValue<number>, drag: SharedValue<number>) {
     const styleAnimation = useAnimatedStyle(() => {
-      return {
-        transform: [{ translateX: drag.value - 100 }],
-      };
+      const trans = interpolate(drag.value, [0, 80], [-80, 0], Extrapolation.CLAMP);
+      return { transform: [{ translateX: trans }] };
     });
-
     return (
-      <Reanimated.View style={styleAnimation}>
+      <Reanimated.View style={[styleAnimation, { flexDirection: 'row' }]}>
         <View style={styles.leftAction}>
-          <Text style={styles.actionText}>Complete</Text>
+          <Ionicons name="checkmark-circle" size={32} color="white" />
         </View>
       </Reanimated.View>
     );
   }
 
+  // Enable Swipe for ALL incomplete tasks (Now, Past, Next) per user request
+  // Unified logic: Web also uses Swipe (mouse drag supported by gesture handler)
+  if (!isCompleted) {
+    return (
+      <Reanimated.View style={[styles.cardContainer, styles.absContainer, animatedStyle]}>
+        <ReanimatedSwipeable
+          containerStyle={styles.swipeContainer}
+          friction={1.5}
+          enableTrackpadTwoFingerGesture
+          rightThreshold={60}
+          leftThreshold={60}
+          overshootRight={false}
+          overshootLeft={false}
+          renderRightActions={RightAction}
+          renderLeftActions={LeftAction}
+          onSwipeableOpen={(direction) => {
+            if (Platform.OS !== 'web') {
+              runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+            }
+            if (direction === 'right') {
+              runOnJS(onComplete)();
+            } else if (direction === 'left') {
+              runOnJS(onReschedule)();
+            }
+          }}
+        >
+          <Pressable onPress={onPress}>
+            {innerCard}
+          </Pressable>
+        </ReanimatedSwipeable>
+      </Reanimated.View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      {nowTask ? (
-        <View style={styles.cardContainer}>
-          <ReanimatedSwipeable
-            containerStyle={styles.swipeContainer}
-            friction={2}
-            enableTrackpadTwoFingerGesture
-            rightThreshold={80}
-            leftThreshold={80}
-            renderRightActions={RightAction}
-            renderLeftActions={LeftAction}
-            onSwipeableOpen={(direction) => {
-              if (direction === 'right') {
-                completeTask(nowTask.id);
-              } else if (direction === 'left') {
-                setRescheduleVisible(true);
-              }
-            }}>
-            <Pressable onPress={() => setDetailVisible(true)}>
-              <View style={styles.card}>
-                <Text style={styles.time}>{formatTimeLabel(nowTask.scheduled_time)}</Text>
-                <Text style={styles.title}>{nowTask.title}</Text>
-                {nextTask ? (
-                  <Text style={styles.secondary} numberOfLines={1}>
-                    Next: {nextTask.title}
-                  </Text>
-                ) : null}
-              </View>
-            </Pressable>
-          </ReanimatedSwipeable>
+    <Reanimated.View style={[styles.cardContainer, styles.absContainer, animatedStyle]}>
+      {innerCard}
+    </Reanimated.View>
+  );
+};
 
-          {/* Web Actions: Explicit buttons */}
-          {Platform.OS === 'web' && (
-            <View style={styles.webActions}>
-              <Pressable
-                onPress={() => setRescheduleVisible(true)}
-                style={({ pressed }) => [
-                  styles.webBtn,
-                  { backgroundColor: theme.background, opacity: pressed ? 0.6 : 1, borderColor: theme.text, borderWidth: 1 }
-                ]}>
-                <Text style={{ color: theme.text, fontWeight: '600' }}>Reschedule</Text>
-              </Pressable>
+export default function PresentScreen() {
+  const { nowTask, nextTask, pastTask, timeline, completeTask, addLog } = useAppState();
+  const [rescheduleVisible, setRescheduleVisible] = useState(false);
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [completionVisible, setCompletionVisible] = useState(false);
 
-              <Pressable
-                onPress={() => completeTask(nowTask.id)}
-                style={({ pressed }) => [
-                  styles.webBtn,
-                  { backgroundColor: theme.tint, opacity: pressed ? 0.8 : 1 }
-                ]}>
-                <Text style={{ color: 'white', fontWeight: '600' }}>Complete</Text>
-              </Pressable>
+  // Track which task is being acted upon (Reschedule/Detail)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  const colorScheme = useColorScheme();
+
+  // Vertical Scroll State
+  const translationY = useSharedValue(0);
+  const isDragging = useSharedValue(false);
+
+  // Find index of 'Now' task in timeline
+  const nowIndex = timeline.findIndex(t => t.id === nowTask?.id);
+
+  // Reset scroll when task changes
+  useEffect(() => {
+    translationY.value = withSpring(0);
+  }, [nowTask?.id]);
+
+  // Safety: If the task changes (e.g. completed/skipped), close the detail view.
+  useEffect(() => {
+    setDetailVisible(false);
+  }, [nowTask?.id]);
+
+  useEffect(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+  }, [nowTask?.id, nextTask?.id]);
+
+  // --- Gestures ---
+  const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .onBegin(() => {
+      isDragging.value = true;
+    })
+    .onUpdate((e) => {
+      translationY.value = e.translationY * 0.5;
+    })
+    .onEnd(() => {
+      isDragging.value = false;
+      translationY.value = withSpring(0, { stiffness: 150, damping: 20 });
+    });
+
+  const handleComplete = (task: Task) => {
+    completeTask(task.id);
+    setCompletionVisible(true);
+  };
+
+  const handleReschedule = (task: Task) => {
+    setSelectedTask(task);
+    setRescheduleVisible(true);
+  };
+
+  const handleLogSubmit = (text: string) => {
+    if (text.trim()) {
+      addLog(text, 'task_complete');
+    }
+    setCompletionVisible(false);
+  };
+
+  const handleLogClose = () => {
+    setCompletionVisible(false);
+  };
+
+  const handlePress = (task: Task) => {
+    // Unified Logic: Tap opens details. Swipe handles actions.
+    setSelectedTask(task);
+    setDetailVisible(true);
+  };
+
+  return (
+    <GestureDetector gesture={panGesture}>
+      <View style={styles.container}>
+        <View style={styles.stackWrapper}>
+
+          {timeline.map((task, index) => {
+            // Limit visibility to 3 items: Now +/- 1 (User request: "3 is enough")
+            if (Math.abs(index - nowIndex) > 1) return null;
+
+            return (
+              <TaskCard
+                key={task.id}
+                task={task}
+                index={index}
+                nowIndex={nowIndex}
+                translationY={translationY}
+                onPress={() => handlePress(task)}
+                onComplete={() => handleComplete(task)}
+                onReschedule={() => handleReschedule(task)}
+              />
+            );
+          })}
+
+          {timeline.length === 0 && (
+            <View style={styles.card}>
+              <Text style={styles.title}>All caught up. Enjoy your moment.</Text>
             </View>
           )}
-        </View>
-      ) : (
-        <View style={styles.card}>
-          <Text style={styles.title}>Breathe.</Text>
-        </View>
-      )}
 
-      {nowTask && (
+        </View>
+
         <RescheduleModal
           visible={rescheduleVisible}
           onClose={() => setRescheduleVisible(false)}
-          taskId={nowTask.id}
+          taskId={selectedTask?.id || nowTask?.id || ''}
         />
-      )}
 
-      {nowTask && (
         <TaskDetailModal
           visible={detailVisible}
           onClose={() => setDetailVisible(false)}
-          task={nowTask}
+          task={selectedTask || nowTask}
         />
-      )}
 
-      {/* Leave space for Chat + tab bar */}
-      <View style={{ height: 140 }} />
-    </View>
+        <CompletionModal
+          visible={completionVisible}
+          onClose={handleLogClose}
+          onSubmit={handleLogSubmit}
+        />
+
+        <View style={{ height: 140 }} />
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -151,16 +306,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     justifyContent: 'center',
   },
+  stackWrapper: {
+    position: 'relative',
+    width: '100%',
+    height: 100,
+    justifyContent: 'center',
+    overflow: 'visible',
+    zIndex: 10,
+  },
   cardContainer: {
     width: '100%',
   },
+  absContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0
+  },
   swipeContainer: {
     width: '100%',
+    overflow: 'visible',
+    backgroundColor: 'transparent',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   card: {
     gap: 12,
     backgroundColor: 'transparent',
-    paddingVertical: 12, // Add some hit area
+    paddingVertical: 12,
   },
   time: {
     fontSize: 14,
@@ -172,42 +348,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 38,
   },
-  secondary: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
   rightAction: {
-    flex: 1,
+    width: 80,
     backgroundColor: '#FF9500',
     justifyContent: 'center',
-    alignItems: 'flex-start',
-    paddingLeft: 20,
+    alignItems: 'center',
     borderRadius: 12,
   },
   leftAction: {
-    flex: 1,
+    width: 80,
     backgroundColor: '#34C759',
     justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingRight: 20,
-    borderRadius: 12,
-  },
-  actionText: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  webActions: {
-    marginTop: 32,
-    flexDirection: 'row',
-    gap: 16,
-    justifyContent: 'flex-start',
-  },
-  webBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    minWidth: 100,
     alignItems: 'center',
+    borderRadius: 12,
   },
 });

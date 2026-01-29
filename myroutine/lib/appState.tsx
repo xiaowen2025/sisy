@@ -12,6 +12,7 @@ import type {
   RoutineItem,
   TabId,
   Task,
+  Log,
 } from '@/lib/types';
 
 const STATE_KEY = 'sisy.app_state.v0';
@@ -23,6 +24,7 @@ type State = {
   tasks: Task[];
   routine: RoutineItem[];
   profile: ProfileField[];
+  logs: Log[];
 };
 
 type Action =
@@ -39,7 +41,8 @@ type Action =
   | { type: 'deleteProfileField'; key: string }
   | { type: 'deleteProfileGroup'; group: string }
   | { type: 'setProfile'; profile: ProfileField[] }
-  | { type: 'skipTask'; taskId: string };
+  | { type: 'skipTask'; taskId: string }
+  | { type: 'addLog'; log: Log };
 
 function sortTodoTasks(tasks: Task[]): Task[] {
   const todo = tasks.filter((t) => t.status === 'todo');
@@ -248,6 +251,8 @@ function reducer(state: State, action: Action): State {
       };
     case 'setProfile':
       return { ...state, profile: action.profile };
+    case 'addLog':
+      return { ...state, logs: [action.log, ...state.logs] };
     default:
       return state;
   }
@@ -260,6 +265,7 @@ const initialState: State = {
   tasks: [],
   routine: [],
   profile: [],
+  logs: [],
 };
 
 type AppStateApi = {
@@ -269,8 +275,11 @@ type AppStateApi = {
   tasks: Task[];
   routine: RoutineItem[];
   profile: ProfileField[];
+  logs: Log[];
   nowTask: Task | null;
   nextTask: Task | null;
+  pastTask: Task | null;
+  timeline: Task[];
   sendChat: (tab: TabId, text: string) => Promise<void>;
   completeTask: (taskId: string) => void;
   rescheduleTask: (taskId: string, scheduled_time: string | null) => void;
@@ -286,6 +295,7 @@ type AppStateApi = {
   skipTask: (taskId: string) => void;
   importRoutine: (json: string) => void;
   importProfile: (json: string) => void;
+  addLog: (content: string, related_action: Log['related_action']) => void;
 };
 
 const Ctx = createContext<AppStateApi | null>(null);
@@ -319,6 +329,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
               { key: 'Age', value: '', group: 'Basics', source: 'user', updated_at: nowIso() },
               { key: 'Gender', value: '', group: 'Basics', source: 'user', updated_at: nowIso() },
             ],
+            logs: [],
           },
         });
       }
@@ -336,9 +347,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       tasks: state.tasks,
       routine: state.routine,
       profile: state.profile,
+      logs: state.logs,
     };
     void setJson(STATE_KEY, persist);
-  }, [state.hydrated, state.conversation_id, state.chat, state.tasks, state.routine, state.profile]);
+  }, [state.hydrated, state.conversation_id, state.chat, state.tasks, state.routine, state.profile, state.logs]);
 
   // Re-calculate "now" periodically or relies on interaction?
   // For MVP, simplistic: calculated on render/memo. 
@@ -352,9 +364,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const todoSorted = useMemo(() => sortTodoTasks(state.tasks), [state.tasks]);
 
   // Smart Visibility Logic
-  const { nowTask, nextTask } = useMemo(() => {
+  const { nowTask, nextTask, pastTask, timeline } = useMemo(() => {
     // 0. Filter out future tasks (tomorrow or later)
-    // This ensures that "Skipped" tasks (+24h) disappear from the "Now" view.
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
@@ -364,27 +375,96 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
 
     // 1. Filter out passed auto-complete items
-    // Dependent on `tick` to refresh as time passes
     const visible = filterVisibleTasks(todayTasks);
 
-    if (visible.length === 0) return { nowTask: null, nextTask: null };
+    // 2. Smart Queue Sort
+    const now = Date.now();
+    const overdue: Task[] = [];
+    const upcoming: Task[] = [];
 
-    const first = visible[0];
+    visible.forEach(t => {
+      if (!t.scheduled_time) {
+        upcoming.push(t);
+      } else {
+        const tTime = Date.parse(t.scheduled_time);
+        if (tTime < now) {
+          overdue.push(t);
+        } else {
+          upcoming.push(t);
+        }
+      }
+    });
 
-    // 2. Find next "significant" task
-    // Search for the first task after 'first' that is NOT auto-complete.
-    // If all remaining are auto-complete, fall back to the immediate next.
-    let second = visible.length > 1 ? visible[1] : null;
+    // Overdue: Sort DESC (Newest first) for Priority
+    overdue.sort((a, b) => {
+      const at = a.scheduled_time ? Date.parse(a.scheduled_time) : 0;
+      const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : 0;
+      return bt - at;
+    });
 
-    // Scan ahead for non-auto-complete
-    const nextSignificant = visible.slice(1).find(t => !t.auto_complete);
-    if (nextSignificant) {
-      second = nextSignificant;
+    // Primary Logic
+    let nowTaskVal: Task | null = null;
+    let pastTaskVal: Task | null = null;
+    let nextTaskVal: Task | null = null;
+
+    if (overdue.length > 0) {
+      nowTaskVal = overdue[0];
+      const potentialPast = overdue.slice(1).find(t => !t.auto_complete);
+      pastTaskVal = potentialPast || null;
+      nextTaskVal = upcoming.length > 0 ? upcoming[0] : null;
+    } else {
+      nowTaskVal = upcoming.length > 0 ? upcoming[0] : null;
+      pastTaskVal = null;
+      nextTaskVal = upcoming.length > 1 ? upcoming[1] : null;
     }
+    
+    // --- Timeline Construction ---
+    // 1. History (Completed tasks from today/recent)
+    // Sorted Oldest -> Newest (so last item is closest to 'Now')
+    const history = state.tasks
+      .filter(t => t.status === 'done')
+      .sort((a, b) => {
+         const at = a.scheduled_time ? Date.parse(a.scheduled_time) : 0;
+         const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : 0;
+         return at - bt; 
+      });
+      // .slice(-5) if needed
 
-    return { nowTask: first, nextTask: second };
-  }, [todoSorted, tick]);
+    // 2. Overdue (for Timeline): Needs to be Sorted Oldest -> Newest
+    // We re-sort overdue for visual linear flow.
+    const overdueAsc = [...overdue].sort((a, b) => {
+        const at = a.scheduled_time ? Date.parse(a.scheduled_time) : 0;
+        const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : 0;
+        return at - bt;
+    });
+    
+    // 3. Upcoming (Already sorted Earliest -> Latest by todoSorted)
+    
+    // Merge into single linear list: [ ...History, ...OverdueAsc, ...Upcoming ]
+    // We need to deduplicate logic slightly: NowTask is already in Overdue or Upcoming.
+    // Ideally, "Now" is just the pointer. The timeline is the full list.
+    
+    const rawTimeline = [...history, ...overdueAsc, ...upcoming];
+    
+    // Ensure uniqueness based on ID (just in case)
+    const seen = new Set();
+    const timelineVal = [];
+    for (const t of rawTimeline) {
+        if (!seen.has(t.id)) {
+            seen.add(t.id);
+            timelineVal.push(t);
+        }
+    }
+    
+    return { 
+        nowTask: nowTaskVal, 
+        nextTask: nextTaskVal, 
+        pastTask: pastTaskVal, 
+        timeline: timelineVal 
+    };
+  }, [todoSorted, tick, state.tasks]);
 
+  
   async function sendChat(tab: TabId, text: string) {
     const userMsg: ChatMessage = { id: makeId('msg'), role: 'user', tab, text, created_at: nowIso() };
     dispatch({ type: 'pushChat', message: userMsg });
@@ -503,8 +583,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     tasks: state.tasks,
     routine: state.routine,
     profile: state.profile,
+    logs: state.logs,
     nowTask,
     nextTask,
+    pastTask,
+    timeline,
     sendChat,
     completeTask,
     rescheduleTask,
@@ -550,7 +633,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         alert('Failed to import profile: ' + e);
       }
-    }
+    },
+    addLog: (content, related_action) => {
+      dispatch({
+        type: 'addLog',
+        log: {
+          id: makeId('log'),
+          timestamp: nowIso(),
+          related_action,
+          content,
+          author: 'user',
+        },
+      });
+    },
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

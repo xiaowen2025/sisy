@@ -45,6 +45,14 @@ export type ChatMessage = {
   created_at: Iso8601;
 };
 
+export type Log = {
+  id: string;
+  timestamp: Iso8601;
+  related_action: 'task_complete' | 'state_update';
+  content: string;
+  author: 'user' | 'assistant';
+};
+
 export type ChatAction =
   | {
     type: 'create_task';

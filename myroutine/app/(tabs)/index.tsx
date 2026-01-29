@@ -251,8 +251,9 @@ export default function PresentScreen() {
         <View style={styles.stackWrapper}>
 
           {timeline.map((task, index) => {
+            const VISIBILITY_WINDOW = 1;
             // Limit visibility to 3 items: Now +/- 1 (User request: "3 is enough")
-            if (Math.abs(index - nowIndex) > 1) return null;
+            if (nowIndex !== -1 && Math.abs(index - nowIndex) > VISIBILITY_WINDOW) return null;
 
             return (
               <TaskCard

@@ -78,6 +78,7 @@ export type ChatSendRequest = {
   tab: TabId;
   text: string;
   imageUri?: string;
+  user_context?: string; // JSON string
 };
 
 export type ChatSendResponse = {

@@ -480,7 +480,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     // Try backend if configured; otherwise fall back to a minimal local behavior.
     let reply: ChatSendResponse | null = null;
     try {
-      reply = await sendChatMessage({ conversation_id: state.conversation_id, tab, text, imageUri });
+      const context = {
+        profile: state.profile,
+        routine: state.routine
+      };
+
+      reply = await sendChatMessage({
+        conversation_id: state.conversation_id,
+        tab,
+        text,
+        imageUri,
+        user_context: JSON.stringify(context)
+      });
     } catch {
       reply = {
         conversation_id: state.conversation_id ?? makeId('conv'),

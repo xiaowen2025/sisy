@@ -103,7 +103,7 @@ class SiSyAgent:
         
         # Initialize Opik
         if opik_api_key:
-            opik.configure(api_key=opik_api_key)
+            opik.configure(api_key=opik_api_key, use_local=False, automatic_approvals=True)
         
         # Initialize OpikTracer for LangChain integration
         self.opik_tracer = OpikTracer(project_name="SiSy")

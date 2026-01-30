@@ -1,32 +1,32 @@
-import { getInstallId } from '@/lib/installId';
 import type { ChatSendRequest, ChatSendResponse } from '@/lib/types';
 
-function getApiBaseUrl(): string | null {
-  const raw = process.env.EXPO_PUBLIC_API_BASE_URL;
-  if (!raw) return null;
-  return raw.replace(/\/+$/, '');
-}
+// Backend URL - change this for production
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
 export async function sendChatMessage(req: ChatSendRequest): Promise<ChatSendResponse> {
-  const baseUrl = getApiBaseUrl();
-  if (!baseUrl) {
-    throw new Error('Missing EXPO_PUBLIC_API_BASE_URL');
+  try {
+    const response = await fetch(`${BACKEND_URL}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        conversation_id: req.conversation_id,
+        tab: req.tab,
+        text: req.text,
+        imageUri: req.imageUri,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[API] Backend error:', response.status, errorText);
+      throw new Error(`Backend error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (e) {
+    console.error('[API] Chat Error', e);
+    throw e;
   }
-
-  const installId = await getInstallId();
-  const res = await fetch(`${baseUrl}/api/v0/chat/messages`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-install-id': installId,
-    },
-    body: JSON.stringify(req),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Chat request failed: ${res.status} ${text}`);
-  }
-
-  return (await res.json()) as ChatSendResponse;
 }

@@ -6,7 +6,7 @@ import { View } from 'react-native';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-import { OmniChat } from '@/components/omni/OmniChat';
+import { Chat } from '@/components/chat/Chat';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -57,7 +57,7 @@ export default function TabLayout() {
       </Tabs>
 
       {/* Persistent input anchored above tab bar */}
-      <OmniChat bottomOffset={64} />
+      <Chat bottomOffset={64} />
     </View>
   );
 }

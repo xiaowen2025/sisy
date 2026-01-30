@@ -316,6 +316,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             { key: 'Gender', value: '', group: 'Basics', source: 'user', updated_at: nowIso() },
           ];
         }
+        // Ensure logs exists (backwards compatibility)
+        if (!saved.logs) {
+          saved.logs = [];
+        }
         dispatch({ type: 'hydrate', state: saved });
       } else {
         dispatch({
@@ -417,54 +421,54 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       pastTaskVal = null;
       nextTaskVal = upcoming.length > 1 ? upcoming[1] : null;
     }
-    
+
     // --- Timeline Construction ---
     // 1. History (Completed tasks from today/recent)
     // Sorted Oldest -> Newest (so last item is closest to 'Now')
     const history = state.tasks
       .filter(t => t.status === 'done')
       .sort((a, b) => {
-         const at = a.scheduled_time ? Date.parse(a.scheduled_time) : 0;
-         const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : 0;
-         return at - bt; 
+        const at = a.scheduled_time ? Date.parse(a.scheduled_time) : 0;
+        const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : 0;
+        return at - bt;
       });
-      // .slice(-5) if needed
+    // .slice(-5) if needed
 
     // 2. Overdue (for Timeline): Needs to be Sorted Oldest -> Newest
     // We re-sort overdue for visual linear flow.
     const overdueAsc = [...overdue].sort((a, b) => {
-        const at = a.scheduled_time ? Date.parse(a.scheduled_time) : 0;
-        const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : 0;
-        return at - bt;
+      const at = a.scheduled_time ? Date.parse(a.scheduled_time) : 0;
+      const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : 0;
+      return at - bt;
     });
-    
+
     // 3. Upcoming (Already sorted Earliest -> Latest by todoSorted)
-    
+
     // Merge into single linear list: [ ...History, ...OverdueAsc, ...Upcoming ]
     // We need to deduplicate logic slightly: NowTask is already in Overdue or Upcoming.
     // Ideally, "Now" is just the pointer. The timeline is the full list.
-    
+
     const rawTimeline = [...history, ...overdueAsc, ...upcoming];
-    
+
     // Ensure uniqueness based on ID (just in case)
     const seen = new Set();
     const timelineVal = [];
     for (const t of rawTimeline) {
-        if (!seen.has(t.id)) {
-            seen.add(t.id);
-            timelineVal.push(t);
-        }
+      if (!seen.has(t.id)) {
+        seen.add(t.id);
+        timelineVal.push(t);
+      }
     }
-    
-    return { 
-        nowTask: nowTaskVal, 
-        nextTask: nextTaskVal, 
-        pastTask: pastTaskVal, 
-        timeline: timelineVal 
+
+    return {
+      nowTask: nowTaskVal,
+      nextTask: nextTaskVal,
+      pastTask: pastTaskVal,
+      timeline: timelineVal
     };
   }, [todoSorted, tick, state.tasks]);
 
-  
+
   async function sendChat(tab: TabId, text: string) {
     const userMsg: ChatMessage = { id: makeId('msg'), role: 'user', tab, text, created_at: nowIso() };
     dispatch({ type: 'pushChat', message: userMsg });

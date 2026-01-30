@@ -17,30 +17,20 @@ export default function SettingsScreen() {
     const [importMode, setImportMode] = useState<'routine' | 'profile'>('routine');
     const [importText, setImportText] = useState('');
 
+    // Confirmation state for Default Template
+    const [defaultConfirmVisible, setDefaultConfirmVisible] = useState(false);
     // Confirmation state for Wellness Template
     const [wellnessConfirmVisible, setWellnessConfirmVisible] = useState(false);
+    // Selection state for Template (routing to either default or wellness)
+    const [templateSelectionVisible, setTemplateSelectionVisible] = useState(false);
 
-    function handleLoadTemplate() {
+    function confirmLoadDefault() {
+        setDefaultConfirmVisible(false);
+        loadRoutineTemplate();
         if (Platform.OS === 'web') {
-            if (window.confirm('Load Default Template? This will merge the default routine into your current schedule.')) {
-                loadRoutineTemplate();
-                window.alert('Default routine template loaded.');
-            }
+            window.alert('Default routine loaded!');
         } else {
-            Alert.alert(
-                'Load Default Template?',
-                'This will merge the default routine into your current schedule. Existing items will be kept, but duplicates might be created if they match exactly.',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                        text: 'Load Template',
-                        onPress: () => {
-                            loadRoutineTemplate();
-                            Alert.alert('Done', 'Default routine template loaded.');
-                        }
-                    },
-                ]
-            );
+            Alert.alert('Done', 'Default routine loaded!');
         }
     }
 
@@ -107,14 +97,8 @@ export default function SettingsScreen() {
                 <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
                     <SettingsRow
                         icon="download"
-                        label="Load Default Routine"
-                        onPress={handleLoadTemplate}
-                    />
-                    <View style={[styles.separator, { backgroundColor: borderColor }]} />
-                    <SettingsRow
-                        icon="heartbeat"
-                        label="Load Wellness Template"
-                        onPress={() => setWellnessConfirmVisible(true)}
+                        label="Load Routine Template"
+                        onPress={() => setTemplateSelectionVisible(true)}
                     />
                 </View>
             </View>
@@ -179,6 +163,70 @@ export default function SettingsScreen() {
                         >
                             <Text style={styles.importBtnText}>Import Data</Text>
                         </Pressable>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Template Selection Modal */}
+            <Modal animationType="fade" transparent visible={templateSelectionVisible} onRequestClose={() => setTemplateSelectionVisible(false)}>
+                <View style={styles.centeredModalOverlay}>
+                    <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
+                        <View style={styles.alertContent}>
+                            <Text style={[styles.alertTitle, { color: theme.text }]}>Choose Template</Text>
+                            <Text style={[styles.alertMessage, { color: theme.text }]}>
+                                Select a starting routine to merge into your schedule.
+                            </Text>
+                        </View>
+
+                        <View style={{ borderTopWidth: 1, borderTopColor: borderColor }}>
+                            <Pressable
+                                onPress={() => { setTemplateSelectionVisible(false); setDefaultConfirmVisible(true); }}
+                                style={{ padding: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: borderColor }}
+                            >
+                                <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Basic Routine</Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => { setTemplateSelectionVisible(false); setWellnessConfirmVisible(true); }}
+                                style={{ padding: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: borderColor }}
+                            >
+                                <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Wellness Routine</Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => setTemplateSelectionVisible(false)}
+                                style={{ padding: 16, alignItems: 'center' }}
+                            >
+                                <Text style={{ color: theme.text, fontSize: 16, opacity: 0.7 }}>Cancel</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Default Routine Confirmation Modal */}
+            <Modal animationType="fade" transparent visible={defaultConfirmVisible} onRequestClose={() => setDefaultConfirmVisible(false)}>
+                <View style={styles.centeredModalOverlay}>
+                    <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
+                        <View style={styles.alertContent}>
+                            <Text style={[styles.alertTitle, { color: theme.text }]}>Load Default Template?</Text>
+                            <Text style={[styles.alertMessage, { color: theme.text }]}>
+                                This will merge the default routine into your current schedule.
+                            </Text>
+                        </View>
+
+                        <View style={[styles.alertButtons, { borderTopColor: borderColor }]}>
+                            <Pressable
+                                onPress={() => setDefaultConfirmVisible(false)}
+                                style={styles.alertButton}
+                            >
+                                <Text style={[styles.alertButtonText, { color: theme.text, opacity: 0.7 }]}>Cancel</Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={confirmLoadDefault}
+                                style={[styles.alertButton, { borderLeftWidth: 1, borderLeftColor: borderColor }]}
+                            >
+                                <Text style={[styles.alertButtonText, { color: theme.tint, fontWeight: '600' }]}>Load</Text>
+                            </Pressable>
+                        </View>
                     </View>
                 </View>
             </Modal>

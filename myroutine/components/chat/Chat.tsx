@@ -18,7 +18,7 @@ function tabFromSegments(segments: string[]): TabId {
   return 'home';
 }
 
-export function OmniChat({ bottomOffset = 64 }: { bottomOffset?: number }) {
+export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const segments = useSegments();
@@ -48,6 +48,12 @@ export function OmniChat({ bottomOffset = 64 }: { bottomOffset?: number }) {
     }, 500);
   }
 
+  const placeholders: Record<TabId, string> = {
+    home: 'How is it going?',
+    routine: 'Want to adjust anything?',
+    me: 'Update profile?',
+  };
+
   return (
     <>
       <View pointerEvents="box-none" style={[styles.overlay, { bottom }]}>
@@ -68,7 +74,7 @@ export function OmniChat({ bottomOffset = 64 }: { bottomOffset?: number }) {
             ref={inputRef}
             value={text}
             onChangeText={setText}
-            placeholder="Say anything…"
+            placeholder={placeholders[tab]}
             placeholderTextColor={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)'}
             onFocus={() => {
               if (justClosed.current) return;

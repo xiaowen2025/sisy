@@ -7,7 +7,7 @@ import json
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -90,6 +90,18 @@ class ChatSendResponse(BaseModel):
     actions: list[ChatAction]
 
 
+
+# Auth dependency
+async def get_current_user_id(x_install_id: str = Header(..., description="Device/Installation ID")):
+    """
+    Validate that X-Install-Id is present.
+    In the future, this can be used to load user context from DB.
+    """
+    if not x_install_id:
+        raise HTTPException(status_code=400, detail="X-Install-Id header is required")
+    return x_install_id
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -103,10 +115,13 @@ async def chat(
     conversation_id: str | None = Form(None),
     image: UploadFile | None = File(None),
     user_context: str | None = Form(None),
+    user_id: str = Depends(get_current_user_id),
 ):
     """Process a chat message and return AI response with actions."""
     if not agent:
         raise HTTPException(status_code=503, detail="Agent not initialized")
+    
+    print(f"[Chat] Request from user_id: {user_id}")
 
     # Parse user context if provided
     context_data = None

@@ -1,4 +1,5 @@
 import type { ChatSendRequest, ChatSendResponse } from '@/lib/types';
+import { getInstallId } from '@/lib/installId';
 
 // Backend URL - change this for production
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000';
@@ -17,10 +18,15 @@ export async function sendChatMessage(req: ChatSendRequest): Promise<ChatSendRes
     // Since req.imageUri is a string uri, if we want to send it as a file we need to fetch it first.
     // For this task we focus on user_context.
 
+    const installId = await getInstallId();
+
     const response = await fetch(`${BACKEND_URL}/chat`, {
       method: 'POST',
       body: formData,
-      // Do NOT set Content-Type header for FormData, browser does it with boundary
+      headers: {
+        'X-Install-Id': installId,
+        // Do NOT set Content-Type header for FormData, browser does it with boundary
+      },
     });
 
     if (!response.ok) {

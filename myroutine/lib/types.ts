@@ -42,6 +42,7 @@ export type ChatMessage = {
   role: ChatRole;
   tab: TabId;
   text: string;
+  imageUri?: string;
   created_at: Iso8601;
 };
 
@@ -76,6 +77,8 @@ export type ChatSendRequest = {
   conversation_id: string | null;
   tab: TabId;
   text: string;
+  imageUri?: string;
+  user_context?: string; // JSON string
 };
 
 export type ChatSendResponse = {

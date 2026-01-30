@@ -76,10 +76,14 @@ function sortRoutineItems(items: RoutineItem[]): RoutineItem[] {
   });
 }
 
+// Helper to safely access properties with "type" or "action" discrimination
 function applyChatActions(state: State, actions: ChatAction[]): State {
   let next = state;
-  for (const action of actions) {
-    if (action.type === 'create_task') {
+  for (const rawAction of actions) {
+    const action = rawAction as any;
+    const type = action.type || action.action;
+
+    if (type === 'create_task') {
       const task: Task = {
         id: makeId('task'),
         title: action.title,
@@ -90,7 +94,7 @@ function applyChatActions(state: State, actions: ChatAction[]): State {
       next = { ...next, tasks: [task, ...next.tasks] };
       continue;
     }
-    if (action.type === 'suggest_reschedule') {
+    if (type === 'suggest_reschedule') {
       next = {
         ...next,
         tasks: next.tasks.map((t) =>
@@ -99,7 +103,7 @@ function applyChatActions(state: State, actions: ChatAction[]): State {
       };
       continue;
     }
-    if (action.type === 'upsert_profile_field') {
+    if (type === 'upsert_profile_field') {
       const field: ProfileField = {
         key: action.key,
         value: action.value,
@@ -280,7 +284,7 @@ type AppStateApi = {
   nextTask: Task | null;
   pastTask: Task | null;
   timeline: Task[];
-  sendChat: (tab: TabId, text: string) => Promise<void>;
+  sendChat: (tab: TabId, text: string, imageUri?: string) => Promise<void>;
   completeTask: (taskId: string) => void;
   rescheduleTask: (taskId: string, scheduled_time: string | null) => void;
   addRoutineItem: () => void;
@@ -469,18 +473,29 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [todoSorted, tick, state.tasks]);
 
 
-  async function sendChat(tab: TabId, text: string) {
-    const userMsg: ChatMessage = { id: makeId('msg'), role: 'user', tab, text, created_at: nowIso() };
+  async function sendChat(tab: TabId, text: string, imageUri?: string) {
+    const userMsg: ChatMessage = { id: makeId('msg'), role: 'user', tab, text, imageUri, created_at: nowIso() };
     dispatch({ type: 'pushChat', message: userMsg });
 
     // Try backend if configured; otherwise fall back to a minimal local behavior.
     let reply: ChatSendResponse | null = null;
     try {
-      reply = await sendChatMessage({ conversation_id: state.conversation_id, tab, text });
+      const context = {
+        profile: state.profile,
+        routine: state.routine
+      };
+
+      reply = await sendChatMessage({
+        conversation_id: state.conversation_id,
+        tab,
+        text,
+        imageUri,
+        user_context: JSON.stringify(context)
+      });
     } catch {
       reply = {
         conversation_id: state.conversation_id ?? makeId('conv'),
-        assistant_text: 'Got it.',
+        assistant_text: 'Got it. (Offline/Error)',
         actions: [{ type: 'create_task', title: text.trim() || 'Untitled', scheduled_time: null }],
       };
     }

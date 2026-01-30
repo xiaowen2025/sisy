@@ -1,12 +1,24 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import {
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+  FlatList,
+  KeyboardAvoidingView,
+} from 'react-native';
 import { useSegments } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAppState } from '@/lib/appState';
-import type { TabId } from '@/lib/types';
+import type { TabId, ChatMessage } from '@/lib/types';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -29,14 +41,35 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
   const { chat, sendChat } = useAppState();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
+  const [image, setImage] = useState<string | null>(null);
   const inputRef = useRef<TextInput | null>(null);
   const justClosed = useRef(false);
 
   async function onSend() {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed && !image) return;
+
+    // Clear state immediately to feel responsive
+    const currentText = trimmed;
+    const currentImage = image;
     setText('');
-    await sendChat(tab, trimmed);
+    setImage(null);
+
+    await sendChat(tab, currentText, currentImage ?? undefined);
+  }
+
+  async function pickImage() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      // base64: true, // we handle conversion in client if needed, or let client wrapper do it
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+      // Ensure drawer is open or stays open
+      setOpen(true);
+    }
   }
 
   function handleClose() {
@@ -54,6 +87,9 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
     me: 'Update profile?',
   };
 
+  // Reverse chat for inverted list (Newest first)
+  const reversedChat = useMemo(() => [...chat].reverse(), [chat]);
+
   return (
     <>
       <View pointerEvents="box-none" style={[styles.overlay, { bottom }]}>
@@ -67,7 +103,8 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
             styles.bar,
             {
               backgroundColor: theme.background,
-              borderColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
+              borderColor:
+                colorScheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
             },
           ]}>
           <TextInput
@@ -75,7 +112,9 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
             value={text}
             onChangeText={setText}
             placeholder={placeholders[tab]}
-            placeholderTextColor={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)'}
+            placeholderTextColor={
+              colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)'
+            }
             onFocus={() => {
               if (justClosed.current) return;
               setOpen(true);
@@ -105,76 +144,141 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
         animationType={Platform.OS === 'web' ? 'fade' : 'slide'}
         presentationStyle={Platform.OS === 'web' ? 'overFullScreen' : 'pageSheet'}
         onRequestClose={handleClose}>
-        <View style={[styles.modalOverlay, Platform.OS === 'web' && styles.webOverlay]}>
-          {/* Backdrop click to close (Web/Android mainly) */}
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-
-          <View style={[styles.drawer, Platform.OS === 'web' && styles.webDrawer, { backgroundColor: theme.background }]}>
-            <View style={styles.drawerHeader}>
-              <Text style={[styles.drawerTitle, { color: theme.text }]}>Chat</Text>
-              <Pressable
-                onPress={handleClose}
-                style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
-                hitSlop={12}>
-                <Text style={{ color: theme.tint, fontWeight: '600' }}>Close</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.drawerBody}>
-              {chat.length === 0 ? (
-                <Text style={{ color: theme.text, opacity: 0.7 }}>
-                  No messages yet. Tell me what you need.
-                </Text>
-              ) : (
-                <View style={styles.history}>
-                  {chat.slice(-50).map((m) => (
-                    <View
-                      key={m.id}
-                      style={[
-                        styles.bubble,
-                        m.role === 'user' ? styles.userBubble : styles.assistantBubble,
-                        {
-                          borderColor:
-                            colorScheme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)',
-                        },
-                      ]}>
-                      <Text style={{ color: theme.text, opacity: m.role === 'assistant' ? 0.9 : 1 }}>
-                        {m.text}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}>
+          <View style={[styles.modalOverlay, Platform.OS === 'web' && styles.webOverlay]}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
 
             <View
               style={[
-                styles.drawerComposer,
-                {
-                  borderTopColor:
-                    colorScheme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)',
-                },
+                styles.drawer,
+                Platform.OS === 'web' && styles.webDrawer,
+                { backgroundColor: theme.background },
               ]}>
-              <TextInput
-                value={text}
-                onChangeText={setText}
-                placeholder="Message…"
-                placeholderTextColor={colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)'}
-                style={[styles.drawerInput, { color: theme.text }]}
-                returnKeyType="send"
-                onSubmitEditing={onSend}
-              />
-              <Pressable
-                onPress={onSend}
-                style={({ pressed }) => [
-                  styles.send,
-                  { opacity: pressed ? 0.6 : 1, backgroundColor: theme.tint },
+              <View style={styles.drawerHeader}>
+                <Text style={[styles.drawerTitle, { color: theme.text }]}>Chat</Text>
+                <Pressable
+                  onPress={handleClose}
+                  style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
+                  hitSlop={12}>
+                  <Text style={{ color: theme.tint, fontWeight: '600' }}>Close</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.drawerBody}>
+                {chat.length === 0 ? (
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ color: theme.text, opacity: 0.7 }}>
+                      No messages yet. Tell me what you need.
+                    </Text>
+                  </View>
+                ) : (
+                  <FlatList
+                    data={reversedChat}
+                    inverted
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.history}
+                    renderItem={({ item: m }: { item: ChatMessage }) => (
+                      <View
+                        style={[
+                          styles.bubble,
+                          m.role === 'user' ? styles.userBubble : styles.assistantBubble,
+                          {
+                            borderColor:
+                              colorScheme === 'dark'
+                                ? 'rgba(255,255,255,0.1)'
+                                : 'rgba(0,0,0,0.1)',
+                            backgroundColor:
+                              m.role === 'user'
+                                ? theme.tint // User messages get tint color
+                                : colorScheme === 'dark'
+                                  ? '#2C2C2E'
+                                  : '#F2F2F7', // Assistant gets gray
+                          },
+                        ]}>
+                        {m.imageUri && (
+                          <Image
+                            source={{ uri: m.imageUri }}
+                            style={{
+                              width: 200,
+                              height: 200,
+                              borderRadius: 8,
+                              marginBottom: 8,
+                            }}
+                            resizeMode="cover"
+                          />
+                        )}
+                        {m.text ? (
+                          <Text
+                            style={{
+                              // If user bubble (tinted), text should likely be white/light
+                              // If assistant bubble (gray), text matches theme
+                              color: m.role === 'user' ? '#fff' : theme.text,
+                              fontSize: 16,
+                            }}>
+                            {m.text}
+                          </Text>
+                        ) : null}
+                      </View>
+                    )}
+                  />
+                )}
+              </View>
+
+              {/* Image Preview */}
+              {image && (
+                <View style={styles.imagePreview}>
+                  <Image
+                    source={{ uri: image }}
+                    style={{ width: 60, height: 60, borderRadius: 6 }}
+                  />
+                  <Pressable onPress={() => setImage(null)} style={styles.removeImage}>
+                    <Ionicons name="close-circle" size={20} color={theme.text} />
+                  </Pressable>
+                </View>
+              )}
+
+              <View
+                style={[
+                  styles.drawerComposer,
+                  {
+                    borderTopColor:
+                      colorScheme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)',
+                  },
                 ]}>
-                <Text style={styles.sendText}>Send</Text>
-              </Pressable>
+                <Pressable onPress={pickImage} style={{ padding: 10 }}>
+                  <Ionicons
+                    name="image-outline"
+                    size={24}
+                    color={theme.text}
+                    style={{ opacity: 0.7 }}
+                  />
+                </Pressable>
+
+                <TextInput
+                  value={text}
+                  onChangeText={setText}
+                  placeholder="Message…"
+                  placeholderTextColor={
+                    colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)'
+                  }
+                  style={[styles.drawerInput, { color: theme.text }]}
+                  returnKeyType="send"
+                  onSubmitEditing={onSend}
+                />
+                <Pressable
+                  onPress={onSend}
+                  style={({ pressed }) => [
+                    styles.send,
+                    { opacity: pressed ? 0.6 : 1, backgroundColor: theme.tint },
+                  ]}>
+                  <Text style={styles.sendText}>Send</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -234,24 +338,27 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   history: {
-    gap: 10,
+    paddingTop: 16,
+    gap: 12,
   },
   bubble: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 18, // Slightly rounder for modern look
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 8,
+    maxWidth: '85%',
   },
   userBubble: {
     alignSelf: 'flex-end',
-    maxWidth: '92%',
+    borderBottomRightRadius: 4, // subtle differentiation
   },
   assistantBubble: {
     alignSelf: 'flex-start',
-    maxWidth: '92%',
-    opacity: 0.95,
+    borderBottomLeftRadius: 4,
   },
   drawerComposer: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
     padding: 12,
     borderTopWidth: 1,
@@ -260,6 +367,18 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     paddingVertical: 10,
+  },
+  imagePreview: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    alignItems: 'center',
+  },
+  removeImage: {
+    marginLeft: -10,
+    marginTop: -10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
   },
   modalOverlay: {
     flex: 1,
@@ -279,6 +398,7 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     minHeight: 400,
     zIndex: 10,
+    overflow: 'hidden', // Contain children
   },
 });
 

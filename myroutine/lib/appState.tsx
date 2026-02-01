@@ -26,6 +26,7 @@ type State = {
   profile: ProfileField[];
   logs: Log[];
   highlightedIds: string[];
+  isTyping: boolean;
 };
 
 type Action =
@@ -44,7 +45,8 @@ type Action =
   | { type: 'setProfile'; profile: ProfileField[] }
   | { type: 'skipTask'; taskId: string }
   | { type: 'addLog'; log: Log }
-  | { type: 'acknowledgeHighlight'; ids: string[] };
+  | { type: 'acknowledgeHighlight'; ids: string[] }
+  | { type: 'setTyping'; isTyping: boolean };
 
 function sortTodoTasks(tasks: Task[]): Task[] {
   const todo = tasks.filter((t) => t.status === 'todo');
@@ -239,11 +241,12 @@ function convertRoutineItemToTask(item: RoutineItem): Task {
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'hydrate':
-      return { hydrated: true, ...action.state };
+      return { hydrated: true, ...action.state, chat: (action.state.chat || []).slice(-100), isTyping: false };
     case 'setConversationId':
       return { ...state, conversation_id: action.conversation_id };
     case 'pushChat':
-      return { ...state, chat: [...state.chat, action.message] };
+      const newChat = [...state.chat, action.message];
+      return { ...state, chat: newChat.slice(-100) };
     case 'applyChatActions':
       return applyChatActions(state, action.actions);
     case 'addTask':
@@ -352,6 +355,8 @@ function reducer(state: State, action: Action): State {
         ...state,
         highlightedIds: state.highlightedIds.filter(id => !action.ids.includes(id))
       };
+    case 'setTyping':
+      return { ...state, isTyping: action.isTyping };
     default:
       return state;
   }
@@ -366,6 +371,7 @@ const initialState: State = {
   profile: [],
   logs: [],
   highlightedIds: [],
+  isTyping: false,
 };
 
 type AppStateApi = {
@@ -377,6 +383,7 @@ type AppStateApi = {
   profile: ProfileField[];
   logs: Log[];
   highlightedIds: string[];
+  isTyping: boolean;
   nowTask: Task | null;
   nextTask: Task | null;
   pastTask: Task | null;
@@ -442,6 +449,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             ],
             logs: [],
             highlightedIds: [],
+            isTyping: false,
           },
         });
       }
@@ -461,6 +469,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       profile: state.profile,
       logs: state.logs,
       highlightedIds: state.highlightedIds,
+      isTyping: state.isTyping,
     };
     void setJson(STATE_KEY, persist);
   }, [state.hydrated, state.conversation_id, state.chat, state.tasks, state.routine, state.profile, state.logs, state.highlightedIds]);
@@ -580,7 +589,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   async function sendChat(tab: TabId, text: string, imageUri?: string) {
     const userMsg: ChatMessage = { id: makeId('msg'), role: 'user', tab, text, imageUri, created_at: nowIso() };
+
+    // --- Special Commands ---
+    if (text.trim() === '/reset') {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.clear();
+        dispatch({
+          type: 'hydrate',
+          state: { ...initialState, chat: [] } // Explicitly clear chat
+        });
+        alert('App data cleared. State reset.');
+      } catch (e) {
+        alert('Failed to reset: ' + e);
+      }
+      return;
+    }
+    // ------------------------
+
     dispatch({ type: 'pushChat', message: userMsg });
+    dispatch({ type: 'setTyping', isTyping: true });
 
     // Try backend if configured; otherwise fall back to a minimal local behavior.
     let reply: ChatSendResponse | null = null;
@@ -604,6 +632,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         assistant_text: 'Got it. (Offline/Error)',
         actions: [{ type: 'create_task', title: text.trim() || 'Untitled', scheduled_time: null }],
       };
+    } finally {
+      dispatch({ type: 'setTyping', isTyping: false });
     }
 
     dispatch({ type: 'setConversationId', conversation_id: reply.conversation_id });
@@ -745,6 +775,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     profile: state.profile,
     logs: state.logs,
     highlightedIds: state.highlightedIds,
+    isTyping: state.isTyping,
     nowTask,
     nextTask,
     pastTask,

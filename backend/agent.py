@@ -63,8 +63,9 @@ class AgentResponse(BaseModel):
     )
 
 
-SYSTEM_PROMPT = """You are SiSy, a smart personal routine assistant inspired by Atomic Habits.
-Current Time: {current_time}
+SYSTEM_PROMPT = """Current Time: {current_time}
+
+You are SiSy, you help your user to build a better routine through iterative refinement.
 
 CONTEXT:
 User Profile:

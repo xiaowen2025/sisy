@@ -285,8 +285,8 @@ type AppStateApi = {
   pastTask: Task | null;
   timeline: Task[];
   sendChat: (tab: TabId, text: string, imageUri?: string) => Promise<void>;
-  completeTask: (taskId: string) => void;
-  rescheduleTask: (taskId: string, scheduled_time: string | null) => void;
+  completeTask: (taskId: string, comment?: string) => void;
+  rescheduleTask: (taskId: string, scheduled_time: string | null, comment?: string) => void;
   addRoutineItem: () => void;
   updateRoutineItem: (id: string, patch: Partial<Omit<RoutineItem, 'id'>>) => void;
   deleteRoutineItem: (id: string) => void;
@@ -296,10 +296,10 @@ type AppStateApi = {
   deleteProfileField: (key: string) => void;
   deleteProfileGroup: (group: string) => void;
   createQuickTask: (title: string) => void;
-  skipTask: (taskId: string) => void;
+  skipTask: (taskId: string, comment?: string) => void;
   importRoutine: (json: string) => void;
   importProfile: (json: string) => void;
-  addLog: (content: string, related_action: Log['related_action']) => void;
+  addLog: (content: string, related_action: Log['related_action'], routine_item_id?: string) => void;
 };
 
 const Ctx = createContext<AppStateApi | null>(null);
@@ -514,12 +514,34 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'applyChatActions', actions: reply.actions });
   }
 
-  function completeTask(taskId: string) {
+  function addLog(content: string, related_action: Log['related_action'], routine_item_id?: string) {
+    // Only log if we have content OR it's a routine item action
+    if (!content && !routine_item_id) return;
+
+    dispatch({
+      type: 'addLog',
+      log: {
+        id: makeId('log'),
+        timestamp: nowIso(),
+        related_action,
+        content: content || (related_action.replace('task_', '').replace('_', ' ')), // Default text if empty
+        author: 'user',
+        routine_item_id,
+      },
+    });
+  }
+
+  function completeTask(taskId: string, comment?: string) {
     // 1. Mark current as done
     dispatch({ type: 'updateTask', taskId, patch: { status: 'done' } });
 
-    // 2. Check if it repeats
+    // 2. Log action
     const task = state.tasks.find((t) => t.id === taskId);
+    if (task) {
+      addLog(comment || '', 'task_complete', task.routine_item_id);
+    }
+
+    // 3. Check if it repeats
     if (task && task.repeat_interval && task.scheduled_time) {
       // Spawn next occurrence
       const nextTime = new Date(task.scheduled_time);
@@ -537,8 +559,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  function rescheduleTask(taskId: string, scheduled_time: string | null) {
+  function rescheduleTask(taskId: string, scheduled_time: string | null, comment?: string) {
     dispatch({ type: 'updateTask', taskId, patch: { scheduled_time } });
+
+    const task = state.tasks.find((t) => t.id === taskId);
+    if (task) {
+      addLog(comment || '', 'task_reschedule', task.routine_item_id);
+    }
   }
 
   function addRoutineItem() {
@@ -595,6 +622,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
+  function skipTask(taskId: string, comment?: string) {
+    dispatch({ type: 'skipTask', taskId });
+    const task = state.tasks.find((t) => t.id === taskId);
+    if (task) {
+      addLog(comment || '', 'task_skip', task.routine_item_id);
+    }
+  }
+
   const api: AppStateApi = {
     hydrated: state.hydrated,
     conversation_id: state.conversation_id,
@@ -619,7 +654,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteProfileField,
     deleteProfileGroup: (group) => dispatch({ type: 'deleteProfileGroup', group }),
     createQuickTask,
-    skipTask: (taskId) => dispatch({ type: 'skipTask', taskId }),
+    skipTask,
     importRoutine: (json) => {
       try {
         const items = JSON.parse(json);
@@ -653,18 +688,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         alert('Failed to import profile: ' + e);
       }
     },
-    addLog: (content, related_action) => {
-      dispatch({
-        type: 'addLog',
-        log: {
-          id: makeId('log'),
-          timestamp: nowIso(),
-          related_action,
-          content,
-          author: 'user',
-        },
-      });
-    },
+    addLog,
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

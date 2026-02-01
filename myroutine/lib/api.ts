@@ -2,7 +2,7 @@ import type { ChatSendRequest, ChatSendResponse } from '@/lib/types';
 import { getInstallId } from '@/lib/installId';
 
 // Backend URL - change this for production
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:10001';
 
 export async function sendChatMessage(req: ChatSendRequest): Promise<ChatSendResponse> {
   try {

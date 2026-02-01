@@ -172,11 +172,14 @@ const TaskCard = ({
   );
 };
 
+import { RoutineItemModal } from '@/components/RoutineItemModal';
+
 export default function PresentScreen() {
-  const { nowTask, nextTask, pastTask, timeline, completeTask, addLog } = useAppState();
+  const { nowTask, nextTask, pastTask, timeline, completeTask, addLog, skipTask } = useAppState();
   const [rescheduleVisible, setRescheduleVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [completionVisible, setCompletionVisible] = useState(false);
+  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
 
   // Track which task is being acted upon (Reschedule/Detail)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -186,6 +189,8 @@ export default function PresentScreen() {
   // Vertical Scroll State
   const translationY = useSharedValue(0);
   const isDragging = useSharedValue(false);
+
+  // ... (previous useEffects remain unchanged) ...
 
   // Find index of 'Now' task in timeline
   const nowIndex = timeline.findIndex(t => t.id === nowTask?.id);
@@ -218,14 +223,33 @@ export default function PresentScreen() {
       translationY.value = withSpring(0, { stiffness: 150, damping: 20 });
     });
 
-  const handleComplete = (task: Task) => {
+  const handleQuickComplete = (task: Task) => {
+    completeTask(task.id);
+  };
+
+  const handleCompleteWithComment = (task: Task) => {
     completeTask(task.id);
     setCompletionVisible(true);
+  };
+
+  const handleDetailComplete = (task: Task, comment?: string) => {
+    completeTask(task.id, comment);
+  };
+
+  const handleSkip = (task: Task, comment?: string) => {
+    skipTask(task.id, comment);
   };
 
   const handleReschedule = (task: Task) => {
     setSelectedTask(task);
     setRescheduleVisible(true);
+  };
+
+  const handleEditRoutine = (task: Task) => {
+    if (task.routine_item_id) {
+      setDetailVisible(false);
+      setEditingRoutineId(task.routine_item_id);
+    }
   };
 
   const handleLogSubmit = (text: string) => {
@@ -263,7 +287,7 @@ export default function PresentScreen() {
                 nowIndex={nowIndex}
                 translationY={translationY}
                 onPress={() => handlePress(task)}
-                onComplete={() => handleComplete(task)}
+                onComplete={() => handleQuickComplete(task)}
                 onReschedule={() => handleReschedule(task)}
               />
             );
@@ -287,12 +311,30 @@ export default function PresentScreen() {
           visible={detailVisible}
           onClose={() => setDetailVisible(false)}
           task={selectedTask || nowTask}
+          onComplete={(comment) => {
+            if (selectedTask || nowTask) handleDetailComplete(selectedTask || nowTask!, comment);
+          }}
+          onSkip={(comment) => {
+            if (selectedTask || nowTask) handleSkip(selectedTask || nowTask!, comment);
+          }}
+          onReschedule={(comment) => {
+            if (selectedTask || nowTask) handleReschedule(selectedTask || nowTask!); // Modal handles its own logic, assuming comment lost for now or passed if I modify handleReschedule
+          }}
+          onEdit={() => {
+            if (selectedTask || nowTask) handleEditRoutine(selectedTask || nowTask!);
+          }}
         />
 
         <CompletionModal
           visible={completionVisible}
           onClose={handleLogClose}
           onSubmit={handleLogSubmit}
+        />
+
+        <RoutineItemModal
+          visible={!!editingRoutineId}
+          onClose={() => setEditingRoutineId(null)}
+          itemId={editingRoutineId}
         />
 
         <View style={{ height: 140 }} />

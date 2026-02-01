@@ -61,6 +61,7 @@ class ChatAction(BaseModel):
     # Common fields
     title: str | None = None
     scheduled_time: str | None = None
+    description: str | None = None
     
     # Routine item fields
     id: str | None = None
@@ -161,4 +162,5 @@ async def chat(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 10001))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

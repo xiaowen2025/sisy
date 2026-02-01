@@ -49,9 +49,10 @@ export type ChatMessage = {
 export type Log = {
   id: string;
   timestamp: Iso8601;
-  related_action: 'task_complete' | 'state_update';
+  related_action: 'task_complete' | 'state_update' | 'task_skip' | 'task_reschedule';
   content: string;
   author: 'user' | 'assistant';
+  routine_item_id?: string;
 };
 
 export type ChatAction =

@@ -10,7 +10,7 @@ import { useAppState } from '@/lib/appState';
 export default function MeScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
-  const { profile, upsertProfileField, deleteProfileField, deleteProfileGroup, logs } = useAppState();
+  const { profile, upsertProfileField, deleteProfileField, deleteProfileGroup } = useAppState();
 
   const borderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
   const placeholderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
@@ -334,37 +334,6 @@ export default function MeScreen() {
           <FontAwesome name="plus" size={16} color="#fff" />
         </Pressable>
       )}
-
-      {/* Logs Section */}
-      <View style={styles.section}>
-        <View style={styles.headerWrapper}>
-          <Text style={styles.sectionHeader}>Logs</Text>
-        </View>
-        <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
-          {logs && logs.length > 0 ? (
-            logs.map((log, i) => (
-              <React.Fragment key={log.id}>
-                {i > 0 && <View style={[styles.separator, { backgroundColor: borderColor }]} />}
-                <View style={styles.logRow}>
-                  <Text style={[styles.logTime, { color: theme.text }]}>
-                    {new Date(log.timestamp).toLocaleString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                  <Text style={[styles.logContent, { color: theme.text }]}>{log.content}</Text>
-                </View>
-              </React.Fragment>
-            ))
-          ) : (
-            <View style={styles.row}>
-              <Text style={[styles.label, { textTransform: 'none', opacity: 0.5 }]}>Empty.</Text>
-            </View>
-          )}
-        </View>
-      </View>
 
       <View style={{ height: 100 }} />
     </ScrollView>

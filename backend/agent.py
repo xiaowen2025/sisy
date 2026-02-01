@@ -27,6 +27,7 @@ class UpsertRoutineItemAction(BaseModel):
     title: str | None = Field(default=None, description="The title of the routine item")
     scheduled_time: str | None = Field(default=None, description="ISO-8601 string for when the item is scheduled")
     status: str | None = Field(default=None, description="Status of the item (e.g., 'pending', 'completed')")
+    description: str | None = Field(default=None, description="Description of the routine item")
 
 
 class AddLogAction(BaseModel):
@@ -58,19 +59,14 @@ class AgentResponse(BaseModel):
     )
 
 
-SYSTEM_PROMPT = """You are SiSy, a daily planning assistant.
-You are helpful, concise, and calm.
-You have access to real-time web search. Use it when users ask about current events, weather, or facts.
+SYSTEM_PROMPT = """You are SiSy, a smart personal routine assistant inspired by Atomic Habits.
+Current Time: {current_time}
 
-You can perform actions like upserting routine items, updating the user's profile, or adding logs.
-When the user's request implies an action, include the appropriate action in your response.
-
-Actions you can include:
-- upsert_routine_item: Create or update a routine item.
-    - If creating: provide title and optional scheduled_time/status.
-    - If updating: provide id and the fields to update (title, scheduled_time, status).
-- upsert_profile_field: Update a profile field with key, value, and optional group.
-- add_log: Add a log message for debugging or information.
+CORE PHILOSOPHY:
+1. Make it Obvious: Suggest specific times and triggers.
+2. Make it Attractive: Use encouraging language and emojis.
+3. Make it Easy: Break complex goals into small, manageable steps and add into the description of the routine item in markdown format. 
+4. Make it Satisfying: Celebrate progress and completion.
 
 CONTEXT:
 User Profile:
@@ -79,18 +75,26 @@ User Profile:
 User Routine:
 {user_routine}
 
+INSTRUCTIONS:
+- Monitor the User Routine to avoid conflicts.
+- Update the User Profile when you learn new preferences or context.
+- If the user asks for a task, create it using 'upsert_routine_item'.
+- If the request is vague, ask clarifying questions in 'assistant_text'.
+- ALWAYS use the Current Time to calculate relative times (e.g., "in 30 mins").
+
+Actions you can include:
+- upsert_routine_item: Create or update a routine item.
+    - If creating: provide title and optional scheduled_time/status.
+    - If updating: provide id and the fields to update.
+- upsert_profile_field: Update a profile field with key, value, and optional group.
+- add_log: Add a log message
+
 IMPORTANT: You MUST respond with valid JSON only. No markdown, no explanation outside the JSON.
 Your response must follow this exact format:
 {{
   "assistant_text": "Your natural language response to the user",
-  "actions": [
-    {{"type": "upsert_routine_item", "title": "New Task", "scheduled_time": "2024-01-31T15:00:00"}},
-    {{"type": "upsert_profile_field", "key": "mood", "value": "happy"}},
-    {{"type": "add_log", "message": "User seems happy today"}}
-  ]
+  "actions": []
 }}
-
-If there are no actions, use an empty array for actions: "actions": []
 """
 
 
@@ -157,15 +161,17 @@ class SiSyAgent:
         text: str,
         tab: str,
         conversation_id: str | None = None,
-        image_uri: str | None = None,
+
         image_file: bytes | None = None,
         user_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Process a user message and return response with actions."""
+        import datetime
         
         # Prepare context strings
         user_profile_str = "{}"
         user_routine_str = "[]"
+        current_time_str = datetime.datetime.now().isoformat()
         
         if user_context:
             user_profile_str = json.dumps(user_context.get("profile", {}), indent=2)
@@ -173,7 +179,8 @@ class SiSyAgent:
             
         system_prompt = SYSTEM_PROMPT.format(
             user_profile=user_profile_str,
-            user_routine=user_routine_str
+            user_routine=user_routine_str,
+            current_time=current_time_str
         )
         content: list[dict[str, Any]] | str = text
         
@@ -200,10 +207,7 @@ class SiSyAgent:
                 text = f"{text}\n\n[System Note: The user attached an image, but analysis failed.]"
                 content = text
 
-        elif image_uri:
-             # Similar logic for URI if needed, but for now focus on file upload
-             text = f"{text}\n\n[System Note: The user provided an image URI: {image_uri}]"
-             content = text
+
 
         # Build messages
         messages = [

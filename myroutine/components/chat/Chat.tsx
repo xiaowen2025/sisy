@@ -157,7 +157,7 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
               style={[
                 styles.drawer,
                 Platform.OS === 'web' && styles.webDrawer,
-                { backgroundColor: theme.background },
+                { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 20) },
               ]}>
               <View style={styles.drawerHeader}>
                 <Text style={[styles.drawerTitle, { color: theme.text }]}>Chat</Text>
@@ -165,7 +165,7 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
                   onPress={handleClose}
                   style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
                   hitSlop={12}>
-                  <Text style={{ color: theme.tint, fontWeight: '600' }}>Close</Text>
+                  <Ionicons name="close" size={24} color={theme.tint} />
                 </Pressable>
               </View>
 
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   },
   drawer: {
     flex: 1,
-    paddingTop: 14,
+    // paddingTop calculated dynamically in render
   },
   drawerHeader: {
     paddingHorizontal: 16,

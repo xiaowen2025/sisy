@@ -102,6 +102,7 @@ export type ChatSendRequest = {
   text: string;
   imageUri?: string;
   user_context?: string; // JSON string
+  message_history?: ChatMessage[];
 };
 
 export type ChatSendResponse = {

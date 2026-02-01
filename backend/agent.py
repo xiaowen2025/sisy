@@ -10,7 +10,7 @@ from typing import Any, Literal
 import opik
 from opik import track
 from opik.integrations.langchain import OpikTracer
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from minimax_mcp.client import MinimaxAPIClient
@@ -170,6 +170,7 @@ class SiSyAgent:
 
         image_file: bytes | None = None,
         user_context: dict[str, Any] | None = None,
+        message_history: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Process a user message and return response with actions."""
         import datetime
@@ -216,10 +217,29 @@ class SiSyAgent:
 
 
         # Build messages
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=content),
-        ]
+        messages = [SystemMessage(content=system_prompt)]
+        
+        # Add history if available
+        if message_history:
+            for msg in message_history:
+                # Skip invalid messages
+                if not isinstance(msg, dict):
+                    continue
+                    
+                role = msg.get('role')
+                text_content = msg.get('text', '')
+                
+                # Skip empty messages if you prefer
+                if not text_content: 
+                    continue
+                    
+                if role == 'user':
+                    messages.append(HumanMessage(content=text_content))
+                elif role == 'assistant':
+                    messages.append(AIMessage(content=text_content))
+        
+        # Add current message
+        messages.append(HumanMessage(content=content))
         
         # Call LLM
         response = await self._call_llm(messages)
@@ -232,7 +252,7 @@ class SiSyAgent:
         
         return {
             "conversation_id": conversation_id or str(uuid.uuid4()),
-            "assistant_message": parsed.get("assistant_message", response_content),
+            "assistant_text": parsed.get("assistant_message", response_content),
             "actions": parsed.get("actions", []),
         }
 

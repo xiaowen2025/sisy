@@ -595,7 +595,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         tab,
         text,
         imageUri,
-        user_context: JSON.stringify(context)
+        user_context: JSON.stringify(context),
+        message_history: state.chat.slice(-10)
       });
     } catch {
       reply = {

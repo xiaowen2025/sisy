@@ -11,6 +11,7 @@ export async function sendChatMessage(req: ChatSendRequest): Promise<ChatSendRes
     formData.append('tab', req.tab);
     formData.append('text', req.text);
     if (req.user_context) formData.append('user_context', req.user_context);
+    if (req.message_history) formData.append('message_history', JSON.stringify(req.message_history));
 
     // TODO: handle imageUri -> actual file usage if needed, 
     // but main.py handles image uploads via separate logic usually or expects a file object.

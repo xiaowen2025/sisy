@@ -15,6 +15,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 import type { RoutineItem } from '@/lib/types';
 import { RoutineItemModal } from '@/components/RoutineItemModal';
 
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 export default function RoutineScreen() {
   const { routine, addRoutineItem, highlightedIds, acknowledgeHighlight } = useAppState();
   const colorScheme = useColorScheme();
@@ -33,7 +35,7 @@ export default function RoutineScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.timeline}>
@@ -71,7 +73,7 @@ export default function RoutineScreen() {
         itemId={editingItemId}
         onClose={() => setEditingItemId(null)}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -120,8 +120,8 @@ export function RoutineItemModal({ visible, onClose, itemId }: Props) {
                 <View style={[styles.sheet, { backgroundColor: theme.background }]}>
                     <View style={styles.header}>
                         <Text style={styles.title}>Edit Item</Text>
-                        <Pressable onPress={handleSave}>
-                            <Text style={{ color: theme.tint, fontWeight: '600', fontSize: 17 }}>Done</Text>
+                        <Pressable onPress={handleSave} style={{ padding: 8 }}>
+                            <FontAwesome name="check" size={20} color={theme.tint} />
                         </Pressable>
                     </View>
 
@@ -168,8 +168,8 @@ export function RoutineItemModal({ visible, onClose, itemId }: Props) {
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Text style={styles.label}>Description</Text>
                                 {isEditing && (
-                                    <Pressable onPress={() => setIsEditing(false)}>
-                                        <Text style={{ fontSize: 12, color: theme.tint, fontWeight: '600' }}>Done</Text>
+                                    <Pressable onPress={() => setIsEditing(false)} style={{ padding: 4 }}>
+                                        <FontAwesome name="check" size={16} color={theme.tint} />
                                     </Pressable>
                                 )}
                             </View>

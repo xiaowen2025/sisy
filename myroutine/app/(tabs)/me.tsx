@@ -9,6 +9,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { useAppState } from '@/lib/appState';
 import { ProfileField } from '@/lib/types';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Types for our FlatList items
 type HeaderItem = { type: 'header'; group: string; id: string };
@@ -307,7 +308,7 @@ export default function MeScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <DraggableFlatList
         data={data}
         onDragEnd={onDragEnd}
@@ -372,7 +373,7 @@ export default function MeScreen() {
           </View>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -382,7 +383,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 100,
   },
   headerWrapper: {

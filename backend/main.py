@@ -82,7 +82,9 @@ class ChatSendRequest(BaseModel):
     tab: str
     text: str
     imageUri: str | None = None
+    imageUri: str | None = None
     user_context: str | None = None # JSON stringified context
+    message_history: str | None = None # JSON stringified history
 
 
 class ChatSendResponse(BaseModel):
@@ -116,6 +118,7 @@ async def chat(
     conversation_id: str | None = Form(None),
     image: UploadFile | None = File(None),
     user_context: str | None = Form(None),
+    message_history: str | None = Form(None),
     user_id: str = Depends(get_current_user_id),
 ):
     """Process a chat message and return AI response with actions."""
@@ -142,6 +145,21 @@ async def chat(
                 context_data = user_context
         except Exception as e:
             print(f"[Chat Warning] Error processing user_context: {e}")
+
+    # Parse message history if provided
+    history_data = []
+    if message_history:
+        try:
+            if isinstance(message_history, str):
+                try:
+                    history_data = json.loads(message_history)
+                except json.JSONDecodeError:
+                    print(f"[Chat Warning] Failed to parse message_history JSON: {message_history}")
+            else:
+                history_data = message_history
+        except Exception as e:
+            print(f"[Chat Warning] Error processing message_history: {e}")
+
     image_data = None
     if image:
         image_data = await image.read()
@@ -153,6 +171,7 @@ async def chat(
             conversation_id=conversation_id,
             image_file=image_data,
             user_context=context_data,
+            message_history=history_data,
         )
         return ChatSendResponse(**result)
     except Exception as e:

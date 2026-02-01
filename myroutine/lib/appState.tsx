@@ -396,6 +396,7 @@ type AppStateApi = {
   skipTask: (taskId: string, comment?: string) => void;
   importRoutine: (json: string) => void;
   importProfile: (json: string) => void;
+  setProfile: (profile: ProfileField[]) => void;
   addLog: (content: string, related_action: Log['related_action'], routine_item_id?: string) => void;
   acknowledgeHighlight: (ids: string[]) => void;
 };
@@ -793,6 +794,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         alert('Failed to import profile: ' + e);
       }
     },
+    setProfile: (profile) => dispatch({ type: 'setProfile', profile }),
     addLog,
     acknowledgeHighlight: (ids) => dispatch({ type: 'acknowledgeHighlight', ids }),
   };

@@ -11,7 +11,7 @@ import { useAppState } from '@/lib/appState';
 export default function SettingsScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
-    const { loadRoutineTemplate, loadWellnessTemplate, routine, profile, importRoutine, importProfile } = useAppState();
+    const { loadRoutineTemplate, loadWellnessTemplate, routine, profile, importRoutine, importProfile, logs } = useAppState();
 
     const [importVisible, setImportVisible] = useState(false);
     const [importMode, setImportMode] = useState<'routine' | 'profile'>('routine');
@@ -129,6 +129,28 @@ export default function SettingsScreen() {
                         label="Import Profile (Paste JSON)"
                         onPress={() => { setImportMode('profile'); setImportVisible(true); }}
                     />
+                </View>
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionHeader}>Audit Log</Text>
+                <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+                    {logs.length === 0 && (
+                        <View style={{ padding: 16 }}>
+                            <Text style={{ opacity: 0.5, fontSize: 13, color: theme.text }}>No recent activity.</Text>
+                        </View>
+                    )}
+                    {logs.map((log, i) => (
+                        <React.Fragment key={log.id}>
+                            {i > 0 && <View style={[styles.separator, { backgroundColor: borderColor, marginLeft: 16 }]} />}
+                            <View style={styles.logRow}>
+                                <Text style={[styles.logTime, { color: theme.text }]}>
+                                    {new Date(log.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </Text>
+                                <Text style={[styles.logContent, { color: theme.text }]}>{log.content}</Text>
+                            </View>
+                        </React.Fragment>
+                    ))}
                 </View>
             </View>
 
@@ -259,7 +281,7 @@ export default function SettingsScreen() {
                     </View>
                 </View>
             </Modal>
-        </ScrollView>
+        </ScrollView >
     );
 }
 
@@ -410,5 +432,22 @@ const styles = StyleSheet.create({
     alertButtonText: {
         fontSize: 16,
         fontWeight: '500',
+    },
+    // Logs Styles
+    logRow: {
+        padding: 16,
+        gap: 4,
+    },
+    logTime: {
+        fontSize: 10,
+        opacity: 0.5,
+        textTransform: 'uppercase',
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+    logContent: {
+        fontSize: 14,
+        lineHeight: 20,
+        opacity: 0.9,
     },
 });

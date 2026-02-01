@@ -20,21 +20,25 @@ from minimax_mcp.client import MinimaxAPIClient
 
 
 
-class UpsertRoutineItemAction(BaseModel):
-    """Action to upsert a routine item (create or update)."""
-    type: Literal["upsert_routine_item"] = "upsert_routine_item"
-    id: str | None = Field(default=None, description="The ID of the routine item (if updating)")
-    title: str | None = Field(default=None, description="The title of the routine item")
+class CreateRoutineItemAction(BaseModel):
+    """Action to create a new routine item."""
+    type: Literal["create_routine_item"] = "create_routine_item"
+    title: str = Field(description="The title of the routine item")
     scheduled_time: str | None = Field(default=None, description="ISO-8601 string for when the item is scheduled")
-    status: str | None = Field(default=None, description="Status of the item (e.g., 'pending', 'completed')")
+    status: str | None = Field(default="pending", description="Initial status of the item (e.g., 'pending')")
     description: str | None = Field(default=None, description="Description of the routine item")
 
 
-class AddLogAction(BaseModel):
-    """Action to add a log entry."""
-    type: Literal["add_log"] = "add_log"
-    message: str = Field(description="The log message")
-    level: str = Field(default="info", description="Log level (info, warning, error)")
+class UpdateRoutineItemAction(BaseModel):
+    """Action to update an existing routine item."""
+    type: Literal["update_routine_item"] = "update_routine_item"
+    id: str = Field(description="The ID of the routine item to update")
+    title: str | None = Field(default=None, description="The new title of the routine item")
+    scheduled_time: str | None = Field(default=None, description="ISO-8601 string for when the item is scheduled")
+    status: str | None = Field(default=None, description="New status of the item")
+    description: str | None = Field(default=None, description="New description of the routine item")
+
+
 
 
 class UpsertProfileFieldAction(BaseModel):
@@ -50,10 +54,10 @@ class UpsertProfileFieldAction(BaseModel):
 
 class AgentResponse(BaseModel):
     """Structured response from the SiSy agent."""
-    assistant_text: str = Field(
+    assistant_message: str = Field(
         description="The natural language response to show the user"
     )
-    actions: list[UpsertRoutineItemAction | UpsertProfileFieldAction | AddLogAction] = Field(
+    actions: list[CreateRoutineItemAction | UpdateRoutineItemAction | UpsertProfileFieldAction] = Field(
         default_factory=list,
         description="List of actions to perform based on the user's request"
     )
@@ -62,12 +66,6 @@ class AgentResponse(BaseModel):
 SYSTEM_PROMPT = """You are SiSy, a smart personal routine assistant inspired by Atomic Habits.
 Current Time: {current_time}
 
-CORE PHILOSOPHY:
-1. Make it Obvious: Suggest specific times and triggers.
-2. Make it Attractive: Use encouraging language and emojis.
-3. Make it Easy: Break complex goals into small, manageable steps and add into the description of the routine item in markdown format. 
-4. Make it Satisfying: Celebrate progress and completion.
-
 CONTEXT:
 User Profile:
 {user_profile}
@@ -75,24 +73,32 @@ User Profile:
 User Routine:
 {user_routine}
 
-INSTRUCTIONS:
-- Monitor the User Routine to avoid conflicts.
-- Update the User Profile when you learn new preferences or context.
-- If the user asks for a task, create it using 'upsert_routine_item'.
-- If the request is vague, ask clarifying questions in 'assistant_text'.
-- ALWAYS use the Current Time to calculate relative times (e.g., "in 30 mins").
+CORE PHILOSOPHY for routine management:
+1. Make it Obvious: Suggest specific triggers, suggest clear titles and descriptions (markdown format) for routine items. 
+2. Make it Attractive: Use encouraging language.
+3. Make it Easy: Break complex goals into small, manageable steps and add into the description of the routine item in markdown format. 
+4. Make it Satisfying: Celebrate progress and completion.
 
-Actions you can include:
-- upsert_routine_item: Create or update a routine item.
-    - If creating: provide title and optional scheduled_time/status.
-    - If updating: provide id and the fields to update.
-- upsert_profile_field: Update a profile field with key, value, and optional group.
-- add_log: Add a log message
+
+INSTRUCTIONS on assistant_message:
+- assistant_message must be clear and concise, use markdown format like bullet points, bold text, etc. to make it more readable.  
+- use web search if needed, make sure your information is up to date and accurate.
+- Before dumping a long response to the user, summarise and ask user if they want to know more details.  
+- Ask smart, easy to understand questions to help user to clarify their obstacles and goals in order to manage the routine items.
+
+INSTRUCTIONS on actions:
+- Update the User Profile when you learn new preferences or context, assign to appropriate group.
+- create_routine_item: Create a new routine item.
+    - MUST provide title.
+    - Optional: scheduled_time, description.
+- update_routine_item: Update an existing routine item.
+    - MUST provide id.
+    - Update only the fields that changed (title, scheduled_time, etc.).
 
 IMPORTANT: You MUST respond with valid JSON only. No markdown, no explanation outside the JSON.
 Your response must follow this exact format:
 {{
-  "assistant_text": "Your natural language response to the user",
+  "assistant_message": "Your natural language response to the user",
   "actions": []
 }}
 """
@@ -142,16 +148,16 @@ class SiSyAgent:
             content = json_match.group(1)
         
         # Try to find raw JSON object
-        json_match = re.search(r'\{[^{}]*"assistant_text"[^{}]*\}', content, re.DOTALL)
+        json_match = re.search(r'\{[^{}]*"assistant_message"[^{}]*\}', content, re.DOTALL)
         if json_match:
             content = json_match.group(0)
         
         try:
             return json.loads(content)
         except json.JSONDecodeError:
-            # Fallback: return the raw content as assistant_text
+            # Fallback: return the raw content as assistant_message
             return {
-                "assistant_text": content,
+                "assistant_message": content,
                 "actions": []
             }
 
@@ -226,7 +232,7 @@ class SiSyAgent:
         
         return {
             "conversation_id": conversation_id or str(uuid.uuid4()),
-            "assistant_text": parsed.get("assistant_text", response_content),
+            "assistant_message": parsed.get("assistant_message", response_content),
             "actions": parsed.get("actions", []),
         }
 

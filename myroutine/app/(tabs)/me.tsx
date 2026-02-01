@@ -10,7 +10,9 @@ import { useAppState } from '@/lib/appState';
 export default function MeScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
-  const { profile, upsertProfileField, deleteProfileField, deleteProfileGroup } = useAppState();
+  const { profile, upsertProfileField, deleteProfileField, deleteProfileGroup, highlightedIds, acknowledgeHighlight } = useAppState();
+
+  // No auto-dismiss for highlights - they persist until interaction
 
   const borderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
   const placeholderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
@@ -52,6 +54,12 @@ export default function MeScreen() {
     const existing = getFieldObj(key);
     const grp = existing?.group || 'Other';
     upsertProfileField(key, val, grp, 'user');
+  };
+
+  const handleInteraction = (key: string) => {
+    if (highlightedIds.includes(key)) {
+      acknowledgeHighlight([key]);
+    }
   };
 
   // Group Renaming
@@ -161,19 +169,25 @@ export default function MeScreen() {
   const renderRow = (f: { key: string; value: string }) => {
     const isSelected = focusedAttribute === f.key;
     const isDeleting = attributeToDelete === f.key;
+    const isHighlighted = highlightedIds.includes(f.key);
 
     return (
-      <View style={[styles.row, isSelected && { backgroundColor: theme.cardBackground }]} key={f.key}>
+      <View style={[
+        styles.row,
+        isSelected && { backgroundColor: theme.cardBackground },
+        isHighlighted && { backgroundColor: colorScheme === 'dark' ? 'rgba(10, 132, 255, 0.1)' : 'rgba(0, 122, 255, 0.05)' }
+      ]} key={f.key}>
         <Pressable
           onPress={() => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setFocusedAttribute(f.key);
             setSelectedGroup(null);
             resetAddState();
+            handleInteraction(f.key);
           }}
           style={styles.labelContainer}
         >
-          <Text style={[styles.label, isSelected && { color: theme.tint }]}>{f.key}</Text>
+          <Text style={[styles.label, isSelected && { color: theme.tint }, isHighlighted && { color: theme.tint }]}>{f.key}</Text>
         </Pressable>
 
         <TextInput
@@ -183,6 +197,7 @@ export default function MeScreen() {
             setFocusedAttribute(f.key);
             setSelectedGroup(null);
             resetAddState();
+            handleInteraction(f.key);
           }}
           placeholder="Value"
           placeholderTextColor={placeholderColor}

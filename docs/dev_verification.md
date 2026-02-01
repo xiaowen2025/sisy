@@ -49,3 +49,18 @@ Frontend Verification Guidelines
 6. Persistence & State
  Reload Page: Refresh the browser.
  Verify: Routine items, Tasks, and Profile changes (Groups/Attributes) should persist.
+
+7. Feedback System (Hints, Highlights, Logs)
+ Navigation Hints:
+ Trigger a chat update (e.g., "My age is 38").
+ Verify: A green dot appears on the "Me" tab icon.
+ Trigger a routine update (e.g., "Add reading").
+ Verify: A green dot appears on the "Routine" tab icon.
+ Persistent Highlighting:
+ Go to the tab with the green dot.
+ Verify: The updated item/field is highlighted (colored border/bg).
+ Verify: The highlight persists indefinitely (wait >5s).
+ Click the item. Verify the highlight disappears.
+ Audit Log:
+ Go to Settings -> Audit Log.
+ Verify: Chronological entries exist for the actions performed above (e.g., "Sisy updated profile...", "Sisy added routine...").

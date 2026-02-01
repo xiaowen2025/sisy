@@ -25,6 +25,7 @@ type State = {
   routine: RoutineItem[];
   profile: ProfileField[];
   logs: Log[];
+  highlightedIds: string[];
 };
 
 type Action =
@@ -42,7 +43,8 @@ type Action =
   | { type: 'deleteProfileGroup'; group: string }
   | { type: 'setProfile'; profile: ProfileField[] }
   | { type: 'skipTask'; taskId: string }
-  | { type: 'addLog'; log: Log };
+  | { type: 'addLog'; log: Log }
+  | { type: 'acknowledgeHighlight'; ids: string[] };
 
 function sortTodoTasks(tasks: Task[]): Task[] {
   const todo = tasks.filter((t) => t.status === 'todo');
@@ -79,6 +81,9 @@ function sortRoutineItems(items: RoutineItem[]): RoutineItem[] {
 // Helper to safely access properties with "type" or "action" discrimination
 function applyChatActions(state: State, actions: ChatAction[]): State {
   let next = state;
+  const newLogs: Log[] = [];
+  const newHighlights: string[] = [];
+
   for (const rawAction of actions) {
     const action = rawAction as any;
     const type = action.type || action.action;
@@ -101,6 +106,19 @@ function applyChatActions(state: State, actions: ChatAction[]): State {
           t.id === action.task_id ? { ...t, scheduled_time: action.scheduled_time } : t
         ),
       };
+
+      // Log rescheduling
+      const task = next.tasks.find(t => t.id === action.task_id);
+      if (task) {
+        newLogs.push({
+          id: makeId('log'),
+          timestamp: nowIso(),
+          related_action: 'task_reschedule',
+          content: `Sisy rescheduled task "${task.title}"`,
+          author: 'assistant',
+          routine_item_id: task.routine_item_id
+        });
+      }
       continue;
     }
     if (type === 'upsert_profile_field') {
@@ -117,8 +135,80 @@ function applyChatActions(state: State, actions: ChatAction[]): State {
           ? next.profile.map((f) => (f.key === action.key ? field : f))
           : [field, ...next.profile];
       next = { ...next, profile: updated };
+
+      newLogs.push({
+        id: makeId('log'),
+        timestamp: nowIso(),
+        related_action: 'state_update',
+        content: `Sisy updated profile: ${action.key}`,
+        author: 'assistant'
+      });
+      newHighlights.push(action.key);
+    }
+
+    if (type === 'create_routine_item' || type === 'update_routine_item') {
+      const existingIdx = action.id ? next.routine.findIndex((r) => r.id === action.id) : -1;
+      let newItem: RoutineItem;
+
+      if (existingIdx >= 0 && action.id) {
+        // Update
+        const old = next.routine[existingIdx];
+        newItem = {
+          ...old,
+          title: action.title ?? old.title,
+          time: action.scheduled_time ? (new Date(action.scheduled_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })) : old.time,
+          description: action.description ?? old.description,
+          // Update other fields if present
+        };
+        // If generic status update?
+        const nextRoutine = next.routine.map(r => r.id === action.id ? newItem : r);
+        next = { ...next, routine: sortRoutineItems(nextRoutine) };
+
+        newLogs.push({
+          id: makeId('log'),
+          timestamp: nowIso(),
+          related_action: 'state_update',
+          content: `Sisy updated routine: ${newItem.title}`,
+          author: 'assistant',
+          routine_item_id: newItem.id
+        });
+        newHighlights.push(newItem.id);
+
+      } else {
+        // Create
+        const id = action.id || makeId('routine');
+        newItem = {
+          id,
+          title: action.title || 'Untitled Routine',
+          time: action.scheduled_time ? (new Date(action.scheduled_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })) : null,
+          auto_complete: false,
+          description: action.description,
+          repeat_interval: 1
+        };
+        next = { ...next, routine: sortRoutineItems([newItem, ...next.routine]) };
+
+        newLogs.push({
+          id: makeId('log'),
+          timestamp: nowIso(),
+          related_action: 'state_update',
+          content: `Sisy created routine: ${newItem.title}`,
+          author: 'assistant',
+          routine_item_id: newItem.id
+        });
+        newHighlights.push(newItem.id);
+      }
     }
   }
+
+  // Apply logs and highlights
+  if (newLogs.length > 0 || newHighlights.length > 0) {
+    next = {
+      ...next,
+      logs: [...newLogs, ...next.logs],
+      highlightedIds: [...newHighlights, ...(next.highlightedIds || [])] // New highlights on top
+    };
+  }
+
   return next;
 }
 
@@ -257,6 +347,11 @@ function reducer(state: State, action: Action): State {
       return { ...state, profile: action.profile };
     case 'addLog':
       return { ...state, logs: [action.log, ...state.logs] };
+    case 'acknowledgeHighlight':
+      return {
+        ...state,
+        highlightedIds: state.highlightedIds.filter(id => !action.ids.includes(id))
+      };
     default:
       return state;
   }
@@ -270,6 +365,7 @@ const initialState: State = {
   routine: [],
   profile: [],
   logs: [],
+  highlightedIds: [],
 };
 
 type AppStateApi = {
@@ -280,13 +376,14 @@ type AppStateApi = {
   routine: RoutineItem[];
   profile: ProfileField[];
   logs: Log[];
+  highlightedIds: string[];
   nowTask: Task | null;
   nextTask: Task | null;
   pastTask: Task | null;
   timeline: Task[];
   sendChat: (tab: TabId, text: string, imageUri?: string) => Promise<void>;
-  completeTask: (taskId: string) => void;
-  rescheduleTask: (taskId: string, scheduled_time: string | null) => void;
+  completeTask: (taskId: string, comment?: string) => void;
+  rescheduleTask: (taskId: string, scheduled_time: string | null, comment?: string) => void;
   addRoutineItem: () => void;
   updateRoutineItem: (id: string, patch: Partial<Omit<RoutineItem, 'id'>>) => void;
   deleteRoutineItem: (id: string) => void;
@@ -296,10 +393,12 @@ type AppStateApi = {
   deleteProfileField: (key: string) => void;
   deleteProfileGroup: (group: string) => void;
   createQuickTask: (title: string) => void;
-  skipTask: (taskId: string) => void;
+  skipTask: (taskId: string, comment?: string) => void;
   importRoutine: (json: string) => void;
   importProfile: (json: string) => void;
-  addLog: (content: string, related_action: Log['related_action']) => void;
+  setProfile: (profile: ProfileField[]) => void;
+  addLog: (content: string, related_action: Log['related_action'], routine_item_id?: string) => void;
+  acknowledgeHighlight: (ids: string[]) => void;
 };
 
 const Ctx = createContext<AppStateApi | null>(null);
@@ -324,6 +423,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (!saved.logs) {
           saved.logs = [];
         }
+        // Ensure highlightedIds exists
+        if (!saved.highlightedIds) {
+          saved.highlightedIds = [];
+        }
         dispatch({ type: 'hydrate', state: saved });
       } else {
         dispatch({
@@ -338,6 +441,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
               { key: 'Gender', value: '', group: 'Basics', source: 'user', updated_at: nowIso() },
             ],
             logs: [],
+            highlightedIds: [],
           },
         });
       }
@@ -356,9 +460,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       routine: state.routine,
       profile: state.profile,
       logs: state.logs,
+      highlightedIds: state.highlightedIds,
     };
     void setJson(STATE_KEY, persist);
-  }, [state.hydrated, state.conversation_id, state.chat, state.tasks, state.routine, state.profile, state.logs]);
+  }, [state.hydrated, state.conversation_id, state.chat, state.tasks, state.routine, state.profile, state.logs, state.highlightedIds]);
 
   // Re-calculate "now" periodically or relies on interaction?
   // For MVP, simplistic: calculated on render/memo. 
@@ -490,7 +595,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         tab,
         text,
         imageUri,
-        user_context: JSON.stringify(context)
+        user_context: JSON.stringify(context),
+        message_history: state.chat.slice(-10)
       });
     } catch {
       reply = {
@@ -514,12 +620,34 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'applyChatActions', actions: reply.actions });
   }
 
-  function completeTask(taskId: string) {
+  function addLog(content: string, related_action: Log['related_action'], routine_item_id?: string) {
+    // Only log if we have content OR it's a routine item action
+    if (!content && !routine_item_id) return;
+
+    dispatch({
+      type: 'addLog',
+      log: {
+        id: makeId('log'),
+        timestamp: nowIso(),
+        related_action,
+        content: content || (related_action.replace('task_', '').replace('_', ' ')), // Default text if empty
+        author: 'user',
+        routine_item_id,
+      },
+    });
+  }
+
+  function completeTask(taskId: string, comment?: string) {
     // 1. Mark current as done
     dispatch({ type: 'updateTask', taskId, patch: { status: 'done' } });
 
-    // 2. Check if it repeats
+    // 2. Log action
     const task = state.tasks.find((t) => t.id === taskId);
+    if (task) {
+      addLog(comment || '', 'task_complete', task.routine_item_id);
+    }
+
+    // 3. Check if it repeats
     if (task && task.repeat_interval && task.scheduled_time) {
       // Spawn next occurrence
       const nextTime = new Date(task.scheduled_time);
@@ -537,8 +665,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  function rescheduleTask(taskId: string, scheduled_time: string | null) {
+  function rescheduleTask(taskId: string, scheduled_time: string | null, comment?: string) {
     dispatch({ type: 'updateTask', taskId, patch: { scheduled_time } });
+
+    const task = state.tasks.find((t) => t.id === taskId);
+    if (task) {
+      addLog(comment || '', 'task_reschedule', task.routine_item_id);
+    }
   }
 
   function addRoutineItem() {
@@ -595,6 +728,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
+  function skipTask(taskId: string, comment?: string) {
+    dispatch({ type: 'skipTask', taskId });
+    const task = state.tasks.find((t) => t.id === taskId);
+    if (task) {
+      addLog(comment || '', 'task_skip', task.routine_item_id);
+    }
+  }
+
   const api: AppStateApi = {
     hydrated: state.hydrated,
     conversation_id: state.conversation_id,
@@ -603,6 +744,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     routine: state.routine,
     profile: state.profile,
     logs: state.logs,
+    highlightedIds: state.highlightedIds,
     nowTask,
     nextTask,
     pastTask,
@@ -619,7 +761,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     deleteProfileField,
     deleteProfileGroup: (group) => dispatch({ type: 'deleteProfileGroup', group }),
     createQuickTask,
-    skipTask: (taskId) => dispatch({ type: 'skipTask', taskId }),
+    skipTask,
     importRoutine: (json) => {
       try {
         const items = JSON.parse(json);
@@ -653,18 +795,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         alert('Failed to import profile: ' + e);
       }
     },
-    addLog: (content, related_action) => {
-      dispatch({
-        type: 'addLog',
-        log: {
-          id: makeId('log'),
-          timestamp: nowIso(),
-          related_action,
-          content,
-          author: 'user',
-        },
-      });
-    },
+    setProfile: (profile) => dispatch({ type: 'setProfile', profile }),
+    addLog,
+    acknowledgeHighlight: (ids) => dispatch({ type: 'acknowledgeHighlight', ids }),
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

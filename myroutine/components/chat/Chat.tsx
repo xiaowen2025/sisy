@@ -13,6 +13,7 @@ import { useSegments } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import Markdown from 'react-native-markdown-display';
 
 import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
@@ -92,51 +93,53 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
 
   return (
     <>
-      <View pointerEvents="box-none" style={[styles.overlay, { bottom }]}>
-        <Pressable
-          onPress={() => {
-            setOpen(true);
-            // Small delay helps web focus after modal paint.
-            setTimeout(() => inputRef.current?.focus(), 50);
-          }}
-          style={[
-            styles.bar,
-            {
-              backgroundColor: theme.background,
-              borderColor:
-                colorScheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
-            },
-          ]}>
-          <TextInput
-            ref={inputRef}
-            value={text}
-            onChangeText={setText}
-            placeholder={placeholders[tab]}
-            placeholderTextColor={
-              colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)'
-            }
-            onFocus={() => {
-              if (justClosed.current) return;
-              setOpen(true);
-            }}
-            style={[styles.input, { color: theme.text }]}
-            returnKeyType="send"
-            onSubmitEditing={onSend}
-            blurOnSubmit={false}
-          />
+      {!open && (
+        <View pointerEvents="box-none" style={[styles.overlay, { bottom }]}>
           <Pressable
-            onPress={onSend}
-            style={({ pressed }) => [
-              styles.send,
+            onPress={() => {
+              setOpen(true);
+              // Small delay helps web focus after modal paint.
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
+            style={[
+              styles.bar,
               {
-                opacity: pressed ? 0.6 : 1,
-                backgroundColor: theme.tint,
+                backgroundColor: theme.background,
+                borderColor:
+                  colorScheme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
               },
             ]}>
-            <Text style={styles.sendText}>Send</Text>
+            <TextInput
+              ref={inputRef}
+              value={text}
+              onChangeText={setText}
+              placeholder={placeholders[tab]}
+              placeholderTextColor={
+                colorScheme === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)'
+              }
+              onFocus={() => {
+                if (justClosed.current) return;
+                setOpen(true);
+              }}
+              style={[styles.input, { color: theme.text }]}
+              returnKeyType="send"
+              onSubmitEditing={onSend}
+              blurOnSubmit={false}
+            />
+            <Pressable
+              onPress={onSend}
+              style={({ pressed }) => [
+                styles.send,
+                {
+                  opacity: pressed ? 0.6 : 1,
+                  backgroundColor: theme.tint,
+                },
+              ]}>
+              <Text style={styles.sendText}>Send</Text>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </View>
+        </View>
+      )}
 
       <Modal
         visible={open}
@@ -154,7 +157,7 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
               style={[
                 styles.drawer,
                 Platform.OS === 'web' && styles.webDrawer,
-                { backgroundColor: theme.background },
+                { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 20) },
               ]}>
               <View style={styles.drawerHeader}>
                 <Text style={[styles.drawerTitle, { color: theme.text }]}>Chat</Text>
@@ -162,7 +165,7 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
                   onPress={handleClose}
                   style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
                   hitSlop={12}>
-                  <Text style={{ color: theme.tint, fontWeight: '600' }}>Close</Text>
+                  <Ionicons name="close" size={24} color={theme.tint} />
                 </Pressable>
               </View>
 
@@ -210,15 +213,15 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
                           />
                         )}
                         {m.text ? (
-                          <Text
+                          <Markdown
                             style={{
-                              // If user bubble (tinted), text should likely be white/light
-                              // If assistant bubble (gray), text matches theme
-                              color: m.role === 'user' ? '#fff' : theme.text,
-                              fontSize: 16,
+                              body: {
+                                color: m.role === 'user' ? '#fff' : theme.text,
+                                fontSize: 16,
+                              },
                             }}>
                             {m.text}
-                          </Text>
+                          </Markdown>
                         ) : null}
                       </View>
                     )}
@@ -316,7 +319,7 @@ const styles = StyleSheet.create({
   },
   drawer: {
     flex: 1,
-    paddingTop: 14,
+    // paddingTop calculated dynamically in render
   },
   drawerHeader: {
     paddingHorizontal: 16,

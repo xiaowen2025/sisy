@@ -7,11 +7,12 @@ import { Text } from '@/components/Themed';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { useAppState } from '@/lib/appState';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SettingsScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
-    const { loadRoutineTemplate, loadWellnessTemplate, routine, profile, importRoutine, importProfile } = useAppState();
+    const { loadRoutineTemplate, loadWellnessTemplate, routine, profile, importRoutine, importProfile, logs } = useAppState();
 
     const [importVisible, setImportVisible] = useState(false);
     const [importMode, setImportMode] = useState<'routine' | 'profile'>('routine');
@@ -89,177 +90,201 @@ export default function SettingsScreen() {
     );
 
     return (
-        <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
+            <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
 
 
-            <View style={styles.section}>
-                <Text style={styles.sectionHeader}>Templates</Text>
-                <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
-                    <SettingsRow
-                        icon="download"
-                        label="Load Routine Template"
-                        onPress={() => setTemplateSelectionVisible(true)}
-                    />
-                </View>
-            </View>
-
-            <View style={styles.section}>
-                <Text style={styles.sectionHeader}>Data & Sync</Text>
-                <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
-                    <SettingsRow
-                        icon="copy"
-                        label="Export Routine (Copy JSON)"
-                        onPress={handleExportRoutine}
-                    />
-                    <View style={[styles.separator, { backgroundColor: borderColor }]} />
-                    <SettingsRow
-                        icon="paste"
-                        label="Import Routine (Paste JSON)"
-                        onPress={() => { setImportMode('routine'); setImportVisible(true); }}
-                    />
-                    <View style={[styles.separator, { backgroundColor: borderColor }]} />
-                    <SettingsRow
-                        icon="user-circle-o"
-                        label="Export Profile (Copy JSON)"
-                        onPress={handleExportProfile}
-                    />
-                    <View style={[styles.separator, { backgroundColor: borderColor }]} />
-                    <SettingsRow
-                        icon="user-plus"
-                        label="Import Profile (Paste JSON)"
-                        onPress={() => { setImportMode('profile'); setImportVisible(true); }}
-                    />
-                </View>
-            </View>
-
-            <View style={{ height: 100 }} />
-
-            <Modal animationType="slide" visible={importVisible} presentationStyle="pageSheet" onRequestClose={() => setImportVisible(false)}>
-                <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Import {importMode === 'routine' ? 'Routine' : 'Profile'}</Text>
-                        <Pressable onPress={() => setImportVisible(false)} hitSlop={10}>
-                            <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Cancel</Text>
-                        </Pressable>
-                    </View>
-                    <View style={{ padding: 20, flex: 1 }}>
-                        <Text style={[styles.modalLabel, { color: theme.text }]}>Paste JSON Data</Text>
-                        <TextInput
-                            style={[styles.textArea, {
-                                color: theme.text,
-                                backgroundColor: theme.cardBackground,
-                                borderColor: borderColor
-                            }]}
-                            multiline
-                            value={importText}
-                            onChangeText={setImportText}
-                            placeholder="{ ... }"
-                            placeholderTextColor={colorScheme === 'dark' ? '#555' : '#999'}
-                            autoCapitalize="none"
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>Templates</Text>
+                    <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+                        <SettingsRow
+                            icon="download"
+                            label="Load Routine Template"
+                            onPress={() => setTemplateSelectionVisible(true)}
                         />
-                        <Pressable
-                            onPress={handleImportSubmit}
-                            style={({ pressed }) => [styles.importBtn, { backgroundColor: theme.tint, opacity: pressed ? 0.9 : 1 }]}
-                        >
-                            <Text style={styles.importBtnText}>Import Data</Text>
-                        </Pressable>
                     </View>
                 </View>
-            </Modal>
 
-            {/* Template Selection Modal */}
-            <Modal animationType="fade" transparent visible={templateSelectionVisible} onRequestClose={() => setTemplateSelectionVisible(false)}>
-                <View style={styles.centeredModalOverlay}>
-                    <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
-                        <View style={styles.alertContent}>
-                            <Text style={[styles.alertTitle, { color: theme.text }]}>Choose Template</Text>
-                            <Text style={[styles.alertMessage, { color: theme.text }]}>
-                                Select a starting routine to merge into your schedule.
-                            </Text>
-                        </View>
-
-                        <View style={{ borderTopWidth: 1, borderTopColor: borderColor }}>
-                            <Pressable
-                                onPress={() => { setTemplateSelectionVisible(false); setDefaultConfirmVisible(true); }}
-                                style={{ padding: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: borderColor }}
-                            >
-                                <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Basic Routine</Text>
-                            </Pressable>
-                            <Pressable
-                                onPress={() => { setTemplateSelectionVisible(false); setWellnessConfirmVisible(true); }}
-                                style={{ padding: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: borderColor }}
-                            >
-                                <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Wellness Routine</Text>
-                            </Pressable>
-                            <Pressable
-                                onPress={() => setTemplateSelectionVisible(false)}
-                                style={{ padding: 16, alignItems: 'center' }}
-                            >
-                                <Text style={{ color: theme.text, fontSize: 16, opacity: 0.7 }}>Cancel</Text>
-                            </Pressable>
-                        </View>
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>Data & Sync</Text>
+                    <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+                        <SettingsRow
+                            icon="copy"
+                            label="Export Routine (Copy JSON)"
+                            onPress={handleExportRoutine}
+                        />
+                        <View style={[styles.separator, { backgroundColor: borderColor }]} />
+                        <SettingsRow
+                            icon="paste"
+                            label="Import Routine (Paste JSON)"
+                            onPress={() => { setImportMode('routine'); setImportVisible(true); }}
+                        />
+                        <View style={[styles.separator, { backgroundColor: borderColor }]} />
+                        <SettingsRow
+                            icon="user-circle-o"
+                            label="Export Profile (Copy JSON)"
+                            onPress={handleExportProfile}
+                        />
+                        <View style={[styles.separator, { backgroundColor: borderColor }]} />
+                        <SettingsRow
+                            icon="user-plus"
+                            label="Import Profile (Paste JSON)"
+                            onPress={() => { setImportMode('profile'); setImportVisible(true); }}
+                        />
                     </View>
                 </View>
-            </Modal>
 
-            {/* Default Routine Confirmation Modal */}
-            <Modal animationType="fade" transparent visible={defaultConfirmVisible} onRequestClose={() => setDefaultConfirmVisible(false)}>
-                <View style={styles.centeredModalOverlay}>
-                    <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
-                        <View style={styles.alertContent}>
-                            <Text style={[styles.alertTitle, { color: theme.text }]}>Load Default Template?</Text>
-                            <Text style={[styles.alertMessage, { color: theme.text }]}>
-                                This will merge the default routine into your current schedule.
-                            </Text>
-                        </View>
-
-                        <View style={[styles.alertButtons, { borderTopColor: borderColor }]}>
-                            <Pressable
-                                onPress={() => setDefaultConfirmVisible(false)}
-                                style={styles.alertButton}
-                            >
-                                <Text style={[styles.alertButtonText, { color: theme.text, opacity: 0.7 }]}>Cancel</Text>
-                            </Pressable>
-                            <Pressable
-                                onPress={confirmLoadDefault}
-                                style={[styles.alertButton, { borderLeftWidth: 1, borderLeftColor: borderColor }]}
-                            >
-                                <Text style={[styles.alertButtonText, { color: theme.tint, fontWeight: '600' }]}>Load</Text>
-                            </Pressable>
-                        </View>
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>Audit Log</Text>
+                    <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+                        {logs.length === 0 && (
+                            <View style={{ padding: 16 }}>
+                                <Text style={{ opacity: 0.5, fontSize: 13, color: theme.text }}>No recent activity.</Text>
+                            </View>
+                        )}
+                        {logs.map((log, i) => (
+                            <React.Fragment key={log.id}>
+                                {i > 0 && <View style={[styles.separator, { backgroundColor: borderColor, marginLeft: 16 }]} />}
+                                <View style={styles.logRow}>
+                                    <Text style={[styles.logTime, { color: theme.text }]}>
+                                        {new Date(log.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </Text>
+                                    <Text style={[styles.logContent, { color: theme.text }]}>{log.content}</Text>
+                                </View>
+                            </React.Fragment>
+                        ))}
                     </View>
                 </View>
-            </Modal>
 
-            {/* Wellness Confirmation Modal - Custom UI */}
-            <Modal animationType="fade" transparent visible={wellnessConfirmVisible} onRequestClose={() => setWellnessConfirmVisible(false)}>
-                <View style={styles.centeredModalOverlay}>
-                    <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
-                        <View style={styles.alertContent}>
-                            <Text style={[styles.alertTitle, { color: theme.text }]}>Load Wellness Template?</Text>
-                            <Text style={[styles.alertMessage, { color: theme.text }]}>
-                                This will replace your current routine structure with a wellness-focused schedule.
-                            </Text>
-                        </View>
+                <View style={{ height: 100 }} />
 
-                        <View style={[styles.alertButtons, { borderTopColor: borderColor }]}>
-                            <Pressable
-                                onPress={() => setWellnessConfirmVisible(false)}
-                                style={styles.alertButton}
-                            >
-                                <Text style={[styles.alertButtonText, { color: theme.text, opacity: 0.7 }]}>Cancel</Text>
+                <Modal animationType="slide" visible={importVisible} presentationStyle="pageSheet" onRequestClose={() => setImportVisible(false)}>
+                    <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Import {importMode === 'routine' ? 'Routine' : 'Profile'}</Text>
+                            <Pressable onPress={() => setImportVisible(false)} hitSlop={10}>
+                                <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Cancel</Text>
                             </Pressable>
+                        </View>
+                        <View style={{ padding: 20, flex: 1 }}>
+                            <Text style={[styles.modalLabel, { color: theme.text }]}>Paste JSON Data</Text>
+                            <TextInput
+                                style={[styles.textArea, {
+                                    color: theme.text,
+                                    backgroundColor: theme.cardBackground,
+                                    borderColor: borderColor
+                                }]}
+                                multiline
+                                value={importText}
+                                onChangeText={setImportText}
+                                placeholder="{ ... }"
+                                placeholderTextColor={colorScheme === 'dark' ? '#555' : '#999'}
+                                autoCapitalize="none"
+                            />
                             <Pressable
-                                onPress={confirmLoadWellness}
-                                style={[styles.alertButton, { borderLeftWidth: 1, borderLeftColor: borderColor }]}
+                                onPress={handleImportSubmit}
+                                style={({ pressed }) => [styles.importBtn, { backgroundColor: theme.tint, opacity: pressed ? 0.9 : 1 }]}
                             >
-                                <Text style={[styles.alertButtonText, { color: theme.tint, fontWeight: '600' }]}>Load</Text>
+                                <Text style={styles.importBtnText}>Import Data</Text>
                             </Pressable>
                         </View>
                     </View>
-                </View>
-            </Modal>
-        </ScrollView>
+                </Modal>
+
+                {/* Template Selection Modal */}
+                <Modal animationType="fade" transparent visible={templateSelectionVisible} onRequestClose={() => setTemplateSelectionVisible(false)}>
+                    <View style={styles.centeredModalOverlay}>
+                        <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
+                            <View style={styles.alertContent}>
+                                <Text style={[styles.alertTitle, { color: theme.text }]}>Choose Template</Text>
+                                <Text style={[styles.alertMessage, { color: theme.text }]}>
+                                    Select a starting routine to merge into your schedule.
+                                </Text>
+                            </View>
+
+                            <View style={{ borderTopWidth: 1, borderTopColor: borderColor }}>
+                                <Pressable
+                                    onPress={() => { setTemplateSelectionVisible(false); setDefaultConfirmVisible(true); }}
+                                    style={{ padding: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: borderColor }}
+                                >
+                                    <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Basic Routine</Text>
+                                </Pressable>
+                                <Pressable
+                                    onPress={() => { setTemplateSelectionVisible(false); setWellnessConfirmVisible(true); }}
+                                    style={{ padding: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: borderColor }}
+                                >
+                                    <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Wellness Routine</Text>
+                                </Pressable>
+                                <Pressable
+                                    onPress={() => setTemplateSelectionVisible(false)}
+                                    style={{ padding: 16, alignItems: 'center' }}
+                                >
+                                    <Text style={{ color: theme.text, fontSize: 16, opacity: 0.7 }}>Cancel</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Default Routine Confirmation Modal */}
+                <Modal animationType="fade" transparent visible={defaultConfirmVisible} onRequestClose={() => setDefaultConfirmVisible(false)}>
+                    <View style={styles.centeredModalOverlay}>
+                        <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
+                            <View style={styles.alertContent}>
+                                <Text style={[styles.alertTitle, { color: theme.text }]}>Load Default Template?</Text>
+                                <Text style={[styles.alertMessage, { color: theme.text }]}>
+                                    This will merge the default routine into your current schedule.
+                                </Text>
+                            </View>
+
+                            <View style={[styles.alertButtons, { borderTopColor: borderColor }]}>
+                                <Pressable
+                                    onPress={() => setDefaultConfirmVisible(false)}
+                                    style={styles.alertButton}
+                                >
+                                    <Text style={[styles.alertButtonText, { color: theme.text, opacity: 0.7 }]}>Cancel</Text>
+                                </Pressable>
+                                <Pressable
+                                    onPress={confirmLoadDefault}
+                                    style={[styles.alertButton, { borderLeftWidth: 1, borderLeftColor: borderColor }]}
+                                >
+                                    <Text style={[styles.alertButtonText, { color: theme.tint, fontWeight: '600' }]}>Load</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Wellness Confirmation Modal - Custom UI */}
+                <Modal animationType="fade" transparent visible={wellnessConfirmVisible} onRequestClose={() => setWellnessConfirmVisible(false)}>
+                    <View style={styles.centeredModalOverlay}>
+                        <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
+                            <View style={styles.alertContent}>
+                                <Text style={[styles.alertTitle, { color: theme.text }]}>Load Wellness Template?</Text>
+                                <Text style={[styles.alertMessage, { color: theme.text }]}>
+                                    This will replace your current routine structure with a wellness-focused schedule.
+                                </Text>
+                            </View>
+
+                            <View style={[styles.alertButtons, { borderTopColor: borderColor }]}>
+                                <Pressable
+                                    onPress={() => setWellnessConfirmVisible(false)}
+                                    style={styles.alertButton}
+                                >
+                                    <Text style={[styles.alertButtonText, { color: theme.text, opacity: 0.7 }]}>Cancel</Text>
+                                </Pressable>
+                                <Pressable
+                                    onPress={confirmLoadWellness}
+                                    style={[styles.alertButton, { borderLeftWidth: 1, borderLeftColor: borderColor }]}
+                                >
+                                    <Text style={[styles.alertButtonText, { color: theme.tint, fontWeight: '600' }]}>Load</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+            </ScrollView >
+        </SafeAreaView>
     );
 }
 
@@ -267,7 +292,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         paddingHorizontal: 20,
-        paddingTop: 60,
+        paddingTop: 20,
     },
     pageTitle: {
         fontSize: 34,
@@ -410,5 +435,22 @@ const styles = StyleSheet.create({
     alertButtonText: {
         fontSize: 16,
         fontWeight: '500',
+    },
+    // Logs Styles
+    logRow: {
+        padding: 16,
+        gap: 4,
+    },
+    logTime: {
+        fontSize: 10,
+        opacity: 0.5,
+        textTransform: 'uppercase',
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+    logContent: {
+        fontSize: 14,
+        lineHeight: 20,
+        opacity: 0.9,
     },
 });

@@ -15,16 +15,27 @@ import { useColorScheme } from '@/components/useColorScheme';
 import type { RoutineItem } from '@/lib/types';
 import { RoutineItemModal } from '@/components/RoutineItemModal';
 
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 export default function RoutineScreen() {
-  const { routine, addRoutineItem } = useAppState();
+  const { routine, addRoutineItem, highlightedIds, acknowledgeHighlight } = useAppState();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
+
+  // No auto-dismiss for highlights - they persist until interaction.
 
   // Modal State
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
+  const handleInteraction = (id: string) => {
+    if (highlightedIds.includes(id)) {
+      acknowledgeHighlight([id]);
+    }
+    setEditingItemId(id);
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.timeline}>
@@ -35,9 +46,10 @@ export default function RoutineScreen() {
             <TimelineItem
               key={item.id}
               item={item}
-              onPress={() => setEditingItemId(item.id)}
+              onPress={() => handleInteraction(item.id)}
               theme={theme}
               isDark={colorScheme === 'dark'}
+              isHighlighted={highlightedIds.includes(item.id)}
             />
           ))}
         </View>
@@ -61,7 +73,7 @@ export default function RoutineScreen() {
         itemId={editingItemId}
         onClose={() => setEditingItemId(null)}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -70,11 +82,13 @@ function TimelineItem({
   onPress,
   theme,
   isDark,
+  isHighlighted,
 }: {
   item: RoutineItem;
   onPress: () => void;
   theme: typeof Colors.light;
   isDark: boolean;
+  isHighlighted?: boolean;
 }) {
   const repeatLabel = item.repeat_interval && item.repeat_interval > 1
     ? `Every ${item.repeat_interval} days`
@@ -88,7 +102,10 @@ function TimelineItem({
       </View>
 
       {/* Connector Dot */}
-      <View style={[styles.dot, { backgroundColor: theme.tint, borderColor: theme.background }]} />
+      <View style={[styles.dot, {
+        backgroundColor: isHighlighted ? theme.tint : theme.tint,
+        borderColor: isHighlighted ? theme.tint : theme.background
+      }]} />
 
       {/* Card */}
       <Pressable
@@ -96,13 +113,18 @@ function TimelineItem({
         style={({ pressed }) => [
           styles.card,
           {
-            backgroundColor: isDark ? '#1c1c1e' : '#ffffff',
-            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+            backgroundColor: isHighlighted
+              ? (isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(0, 122, 255, 0.08)')
+              : (isDark ? '#1c1c1e' : '#ffffff'),
+            borderColor: isHighlighted
+              ? theme.tint
+              : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
             opacity: pressed ? 0.7 : 1,
+            borderWidth: isHighlighted ? 1.5 : 1,
           },
         ]}>
         <View>
-          <Text style={[styles.itemTitle, item.auto_complete && styles.autoCompleteText]}>
+          <Text style={[styles.itemTitle, item.auto_complete && styles.autoCompleteText, isHighlighted && { color: theme.tint }]}>
             {item.title}
           </Text>
           {repeatLabel && (

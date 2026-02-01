@@ -49,9 +49,10 @@ export type ChatMessage = {
 export type Log = {
   id: string;
   timestamp: Iso8601;
-  related_action: 'task_complete' | 'state_update';
+  related_action: 'task_complete' | 'state_update' | 'task_skip' | 'task_reschedule';
   content: string;
   author: 'user' | 'assistant';
+  routine_item_id?: string;
 };
 
 export type ChatAction =
@@ -71,6 +72,28 @@ export type ChatAction =
     value: string;
     group?: string;
     source?: ProfileFieldSource;
+  }
+  | {
+    type: 'create_routine_item';
+    title: string;
+    scheduled_time?: string | null;
+    status?: string | null;
+    description?: string | null;
+  }
+  | {
+    type: 'update_routine_item';
+    id: string;
+    title?: string;
+    scheduled_time?: string | null;
+    status?: string | null;
+    description?: string | null;
+  }
+  | {
+    type: 'upsert_profile_field';
+    key: string;
+    value: string;
+    group?: string;
+    source?: ProfileFieldSource;
   };
 
 export type ChatSendRequest = {
@@ -79,6 +102,7 @@ export type ChatSendRequest = {
   text: string;
   imageUri?: string;
   user_context?: string; // JSON string
+  message_history?: ChatMessage[];
 };
 
 export type ChatSendResponse = {

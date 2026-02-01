@@ -10,7 +10,7 @@ from typing import Any, Literal
 import opik
 from opik import track
 from opik.integrations.langchain import OpikTracer
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from minimax_mcp.client import MinimaxAPIClient
@@ -20,20 +20,25 @@ from minimax_mcp.client import MinimaxAPIClient
 
 
 
-class UpsertRoutineItemAction(BaseModel):
-    """Action to upsert a routine item (create or update)."""
-    type: Literal["upsert_routine_item"] = "upsert_routine_item"
-    id: str | None = Field(default=None, description="The ID of the routine item (if updating)")
-    title: str | None = Field(default=None, description="The title of the routine item")
+class CreateRoutineItemAction(BaseModel):
+    """Action to create a new routine item."""
+    type: Literal["create_routine_item"] = "create_routine_item"
+    title: str = Field(description="The title of the routine item")
     scheduled_time: str | None = Field(default=None, description="ISO-8601 string for when the item is scheduled")
-    status: str | None = Field(default=None, description="Status of the item (e.g., 'pending', 'completed')")
+    status: str | None = Field(default="pending", description="Initial status of the item (e.g., 'pending')")
+    description: str | None = Field(default=None, description="Description of the routine item")
 
 
-class AddLogAction(BaseModel):
-    """Action to add a log entry."""
-    type: Literal["add_log"] = "add_log"
-    message: str = Field(description="The log message")
-    level: str = Field(default="info", description="Log level (info, warning, error)")
+class UpdateRoutineItemAction(BaseModel):
+    """Action to update an existing routine item."""
+    type: Literal["update_routine_item"] = "update_routine_item"
+    id: str = Field(description="The ID of the routine item to update")
+    title: str | None = Field(default=None, description="The new title of the routine item")
+    scheduled_time: str | None = Field(default=None, description="ISO-8601 string for when the item is scheduled")
+    status: str | None = Field(default=None, description="New status of the item")
+    description: str | None = Field(default=None, description="New description of the routine item")
+
+
 
 
 class UpsertProfileFieldAction(BaseModel):
@@ -49,28 +54,17 @@ class UpsertProfileFieldAction(BaseModel):
 
 class AgentResponse(BaseModel):
     """Structured response from the SiSy agent."""
-    assistant_text: str = Field(
+    assistant_message: str = Field(
         description="The natural language response to show the user"
     )
-    actions: list[UpsertRoutineItemAction | UpsertProfileFieldAction | AddLogAction] = Field(
+    actions: list[CreateRoutineItemAction | UpdateRoutineItemAction | UpsertProfileFieldAction] = Field(
         default_factory=list,
         description="List of actions to perform based on the user's request"
     )
 
 
-SYSTEM_PROMPT = """You are SiSy, a daily planning assistant.
-You are helpful, concise, and calm.
-You have access to real-time web search. Use it when users ask about current events, weather, or facts.
-
-You can perform actions like upserting routine items, updating the user's profile, or adding logs.
-When the user's request implies an action, include the appropriate action in your response.
-
-Actions you can include:
-- upsert_routine_item: Create or update a routine item.
-    - If creating: provide title and optional scheduled_time/status.
-    - If updating: provide id and the fields to update (title, scheduled_time, status).
-- upsert_profile_field: Update a profile field with key, value, and optional group.
-- add_log: Add a log message for debugging or information.
+SYSTEM_PROMPT = """You are SiSy, a smart personal routine assistant inspired by Atomic Habits.
+Current Time: {current_time}
 
 CONTEXT:
 User Profile:
@@ -79,18 +73,34 @@ User Profile:
 User Routine:
 {user_routine}
 
+CORE PHILOSOPHY for routine management:
+1. Make it Obvious: Suggest specific triggers, suggest clear titles and descriptions (markdown format) for routine items. 
+2. Make it Attractive: Use encouraging language.
+3. Make it Easy: Break complex goals into small, manageable steps and add into the description of the routine item in markdown format. 
+4. Make it Satisfying: Celebrate progress and completion.
+
+
+INSTRUCTIONS on assistant_message:
+- assistant_message must be clear and concise, use markdown format like bullet points, bold text, etc. to make it more readable.  
+- use web search if needed, make sure your information is up to date and accurate.
+- Before dumping a long response to the user, summarise and ask user if they want to know more details.  
+- Ask smart, easy to understand questions to help user to clarify their obstacles and goals in order to manage the routine items.
+
+INSTRUCTIONS on actions:
+- Update the User Profile when you learn new preferences or context, assign to appropriate group.
+- create_routine_item: Create a new routine item.
+    - MUST provide title.
+    - Optional: scheduled_time, description.
+- update_routine_item: Update an existing routine item.
+    - MUST provide id.
+    - Update only the fields that changed (title, scheduled_time, etc.).
+
 IMPORTANT: You MUST respond with valid JSON only. No markdown, no explanation outside the JSON.
 Your response must follow this exact format:
 {{
-  "assistant_text": "Your natural language response to the user",
-  "actions": [
-    {{"type": "upsert_routine_item", "title": "New Task", "scheduled_time": "2024-01-31T15:00:00"}},
-    {{"type": "upsert_profile_field", "key": "mood", "value": "happy"}},
-    {{"type": "add_log", "message": "User seems happy today"}}
-  ]
+  "assistant_message": "Your natural language response to the user",
+  "actions": []
 }}
-
-If there are no actions, use an empty array for actions: "actions": []
 """
 
 
@@ -138,16 +148,16 @@ class SiSyAgent:
             content = json_match.group(1)
         
         # Try to find raw JSON object
-        json_match = re.search(r'\{[^{}]*"assistant_text"[^{}]*\}', content, re.DOTALL)
+        json_match = re.search(r'\{[^{}]*"assistant_message"[^{}]*\}', content, re.DOTALL)
         if json_match:
             content = json_match.group(0)
         
         try:
             return json.loads(content)
         except json.JSONDecodeError:
-            # Fallback: return the raw content as assistant_text
+            # Fallback: return the raw content as assistant_message
             return {
-                "assistant_text": content,
+                "assistant_message": content,
                 "actions": []
             }
 
@@ -157,15 +167,18 @@ class SiSyAgent:
         text: str,
         tab: str,
         conversation_id: str | None = None,
-        image_uri: str | None = None,
+
         image_file: bytes | None = None,
         user_context: dict[str, Any] | None = None,
+        message_history: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Process a user message and return response with actions."""
+        import datetime
         
         # Prepare context strings
         user_profile_str = "{}"
         user_routine_str = "[]"
+        current_time_str = datetime.datetime.now().isoformat()
         
         if user_context:
             user_profile_str = json.dumps(user_context.get("profile", {}), indent=2)
@@ -173,7 +186,8 @@ class SiSyAgent:
             
         system_prompt = SYSTEM_PROMPT.format(
             user_profile=user_profile_str,
-            user_routine=user_routine_str
+            user_routine=user_routine_str,
+            current_time=current_time_str
         )
         content: list[dict[str, Any]] | str = text
         
@@ -200,16 +214,32 @@ class SiSyAgent:
                 text = f"{text}\n\n[System Note: The user attached an image, but analysis failed.]"
                 content = text
 
-        elif image_uri:
-             # Similar logic for URI if needed, but for now focus on file upload
-             text = f"{text}\n\n[System Note: The user provided an image URI: {image_uri}]"
-             content = text
+
 
         # Build messages
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=content),
-        ]
+        messages = [SystemMessage(content=system_prompt)]
+        
+        # Add history if available
+        if message_history:
+            for msg in message_history:
+                # Skip invalid messages
+                if not isinstance(msg, dict):
+                    continue
+                    
+                role = msg.get('role')
+                text_content = msg.get('text', '')
+                
+                # Skip empty messages if you prefer
+                if not text_content: 
+                    continue
+                    
+                if role == 'user':
+                    messages.append(HumanMessage(content=text_content))
+                elif role == 'assistant':
+                    messages.append(AIMessage(content=text_content))
+        
+        # Add current message
+        messages.append(HumanMessage(content=content))
         
         # Call LLM
         response = await self._call_llm(messages)
@@ -222,7 +252,7 @@ class SiSyAgent:
         
         return {
             "conversation_id": conversation_id or str(uuid.uuid4()),
-            "assistant_text": parsed.get("assistant_text", response_content),
+            "assistant_text": parsed.get("assistant_message", response_content),
             "actions": parsed.get("actions", []),
         }
 

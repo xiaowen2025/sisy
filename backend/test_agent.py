@@ -63,7 +63,7 @@ async def test_agent_directly():
             text=test_message,
             tab=test_tab,
             conversation_id=None,
-            image_uri=None,
+
         )
 
         end_time = datetime.now()

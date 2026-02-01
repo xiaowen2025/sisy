@@ -1,125 +1,117 @@
-import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, TextInput, View, ScrollView, Platform, LayoutAnimation } from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import { Alert, Pressable, StyleSheet, TextInput, View, LayoutAnimation, Keyboard } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import DraggableFlatList, { ScaleDecorator, RenderItemParams, ShadowDecorator } from 'react-native-draggable-flatlist';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { Text } from '@/components/Themed';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { useAppState } from '@/lib/appState';
+import { ProfileField } from '@/lib/types';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Types for our FlatList items
+type HeaderItem = { type: 'header'; group: string; id: string };
+type FieldItem = { type: 'field'; field: ProfileField; id: string };
+type FooterItem = { type: 'footer'; group: string; id: string };
+type PlaceholderItem = { type: 'placeholder'; id: string }; // For empty state or spacing
+
+type ListItem = HeaderItem | FieldItem | FooterItem | PlaceholderItem;
 
 export default function MeScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
-  const { profile, upsertProfileField, deleteProfileField, deleteProfileGroup, logs } = useAppState();
+  const { profile, setProfile, upsertProfileField, deleteProfileField, deleteProfileGroup, highlightedIds, acknowledgeHighlight } = useAppState();
 
   const borderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
   const placeholderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
-  const iconColor = theme.tint; // Use brand color for icons
   const errorColor = '#ef4444';
 
-  // State for UI interactions
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  // --- Interaction State ---
   const [focusedAttribute, setFocusedAttribute] = useState<string | null>(null);
-  const [groupRenameVal, setGroupRenameVal] = useState('');
+  const [renamingGroup, setRenamingGroup] = useState<{ original: string, current: string } | null>(null);
 
-  const groups = useMemo(() => {
-    const grouped: Record<string, typeof profile> = {};
-    profile.forEach(f => {
-      const grp = f.group || 'Other';
-      if (!grouped[grp]) grouped[grp] = [];
-      grouped[grp].push(f);
-    });
-    return grouped;
-  }, [profile]);
-
-  // Determine group order
-  const sortedGroupKeys = useMemo(() => {
-    const keys = Object.keys(groups);
-    const order = ['Basics', 'Health', 'Preferences', 'Other'];
-    return keys.sort((a, b) => {
-      const ia = order.indexOf(a);
-      const ib = order.indexOf(b);
-      if (ia !== -1 && ib !== -1) return ia - ib;
-      if (ia !== -1) return -1;
-      if (ib !== -1) return 1;
-      return a.localeCompare(b);
-    });
-  }, [groups]);
-
-  const getFieldObj = (key: string) => profile.find((f) => f.key === key);
-
-  const setField = (key: string, val: string) => {
-    const existing = getFieldObj(key);
-    const grp = existing?.group || 'Other';
-    upsertProfileField(key, val, grp, 'user');
-  };
-
-  // Group Renaming
-  const startRenameGroup = (group: string) => {
-    setSelectedGroup(group);
-    setGroupRenameVal(group);
-    setFocusedAttribute(null);
-  };
-
-  const saveGroupRename = (oldName: string, shouldClose = true) => {
-    const newName = groupRenameVal.trim();
-    if (!newName || newName === oldName) {
-      if (shouldClose) setSelectedGroup(null);
-      return;
-    }
-    const items = groups[oldName] || [];
-    items.forEach(f => {
-      upsertProfileField(f.key, f.value, newName, 'user');
-    });
-    if (shouldClose) setSelectedGroup(null);
-  };
-
-  // Deletion States
+  // Deletion
   const [attributeToDelete, setAttributeToDelete] = useState<string | null>(null);
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
 
-  const initiateDeleteGroup = (groupName: string) => setGroupToDelete(groupName);
-  const confirmDeleteGroup = (groupName: string) => {
-    deleteProfileGroup(groupName);
-    setSelectedGroup(null);
-    setGroupToDelete(null);
-  };
-  const cancelDeleteGroup = () => setGroupToDelete(null);
-
-  const initiateDeleteAttribute = (key: string) => setAttributeToDelete(key);
-  const confirmAttributeDeletion = (key: string) => {
-    deleteProfileField(key);
-    setAttributeToDelete(null);
-  };
-  const cancelAttributeDeletion = () => setAttributeToDelete(null);
-
-  // New Item States
+  // Addition
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [newGroupTempName, setNewGroupTempName] = useState('');
 
-  // Per-group "Add Attribute" state
   const [activeAddGroup, setActiveAddGroup] = useState<string | null>(null);
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
 
+  // --- Data Flattening ---
+  const data = useMemo(() => {
+    const list: ListItem[] = [];
+    if (profile.length === 0) return list;
+
+    let currentGroup = profile[0].group || 'Other';
+
+    // Add first header
+    list.push({ type: 'header', group: currentGroup, id: `header-${currentGroup}-0` });
+
+    profile.forEach((f, i) => {
+      const g = f.group || 'Other';
+      if (g !== currentGroup) {
+        // Close previous group with footer
+        list.push({ type: 'footer', group: currentGroup, id: `footer-${currentGroup}-${i}` });
+
+        // Start new group
+        currentGroup = g;
+        list.push({ type: 'header', group: g, id: `header-${g}-${i}` });
+      }
+      list.push({ type: 'field', field: f, id: f.key });
+    });
+
+    // Close last group
+    list.push({ type: 'footer', group: currentGroup, id: `footer-${currentGroup}-end` });
+
+    // Add extra padding item at bottom
+    list.push({ type: 'placeholder', id: 'bottom-pad' });
+
+    return list;
+  }, [profile]);
+
+  // --- Key Extractor ---
+  const keyExtractor = (item: ListItem) => item.id;
+
+  // --- Drag End Handler ---
+  const onDragEnd = ({ data: newData }: { data: ListItem[] }) => {
+    // Reconstruct profile from the visual list
+    const newProfile: ProfileField[] = [];
+    let currentGroup = 'Other'; // Default
+
+    const firstHeader = newData.find(i => i.type === 'header') as HeaderItem | undefined;
+    if (firstHeader) currentGroup = firstHeader.group;
+
+    newData.forEach(item => {
+      if (item.type === 'header') {
+        currentGroup = item.group;
+      } else if (item.type === 'field') {
+        // If the group has changed (dragged to new section), update it
+        // Note: We use strict comparison.
+        const updatedField = { ...item.field, group: currentGroup };
+        newProfile.push(updatedField);
+      }
+    });
+
+    setProfile(newProfile);
+  };
+
+  // --- Helpers ---
   const resetAddState = () => {
     setActiveAddGroup(null);
     setNewKey('');
     setNewValue('');
   };
 
-  const saveToGroup = (groupName: string) => {
-    if (!newKey.trim() || !newValue.trim()) return;
-    upsertProfileField(newKey.trim(), newValue.trim(), groupName, 'user');
-    resetAddState();
-  };
-
-  const saveNewGroup = () => {
+  const handleCreateGroup = () => {
     const name = newGroupTempName.trim();
-    if (!name) {
-      Alert.alert('Group Name Required', 'Please enter a name for the new group.');
-      return;
-    }
+    if (!name) return;
     if (!newKey.trim() || !newValue.trim()) return;
 
     upsertProfileField(newKey.trim(), newValue.trim(), name, 'user');
@@ -128,246 +120,260 @@ export default function MeScreen() {
     resetAddState();
   };
 
-  const renderAddAttributeRow = (groupName: string, onSave: () => void) => (
-    <View style={[styles.row, styles.addAttributeRow, { borderTopColor: borderColor }]}>
-      <TextInput
-        value={newKey}
-        onChangeText={setNewKey}
-        placeholder="Attribute"
-        placeholderTextColor={placeholderColor}
-        style={[styles.smallInput, { color: theme.text, flex: 1, marginRight: 12 }]}
-        autoCapitalize="words"
-        autoFocus
-        returnKeyType="next"
-      />
-      <TextInput
-        value={newValue}
-        onChangeText={setNewValue}
-        placeholder="Value"
-        placeholderTextColor={placeholderColor}
-        style={[styles.smallInput, { color: theme.text, flex: 1, marginRight: 12 }]}
-        returnKeyType="done"
-        onSubmitEditing={onSave}
-      />
-      <Pressable onPress={onSave} style={[styles.actionButton, { backgroundColor: theme.tint }]}>
-        <FontAwesome name="check" size={12} color="#fff" />
-      </Pressable>
-      <Pressable onPress={resetAddState} style={[styles.actionButton, { backgroundColor: 'transparent', marginLeft: 4 }]}>
-        <FontAwesome name="close" size={12} color={theme.text} style={{ opacity: 0.5 }} />
-      </Pressable>
-    </View>
-  );
+  const saveToGroup = (group: string) => {
+    if (!newKey.trim() || !newValue.trim()) return;
+    upsertProfileField(newKey.trim(), newValue.trim(), group, 'user');
+    resetAddState();
+  };
 
-  const renderRow = (f: { key: string; value: string }) => {
-    const isSelected = focusedAttribute === f.key;
-    const isDeleting = attributeToDelete === f.key;
+  const saveGroupRename = () => {
+    if (!renamingGroup) return;
+    const oldName = renamingGroup.original;
+    const newName = renamingGroup.current.trim();
+
+    if (newName && newName !== oldName) {
+      // Update all fields in this group
+      // We need to find them in the profile
+      const fields = profile.filter(f => (f.group || 'Other') === oldName);
+      fields.forEach(f => {
+        upsertProfileField(f.key, f.value, newName, 'user');
+      });
+    }
+    setRenamingGroup(null);
+  };
+
+  const deleteGroup = (group: string) => {
+    deleteProfileGroup(group);
+    setGroupToDelete(null);
+  };
+
+  // --- Render Items ---
+
+  const renderHeader = (item: HeaderItem) => {
+    const isRenaming = renamingGroup?.original === item.group;
+    const isDeleting = groupToDelete === item.group;
 
     return (
-      <View style={[styles.row, isSelected && { backgroundColor: theme.cardBackground }]} key={f.key}>
-        <Pressable
-          onPress={() => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setFocusedAttribute(f.key);
-            setSelectedGroup(null);
-            resetAddState();
-          }}
-          style={styles.labelContainer}
-        >
-          <Text style={[styles.label, isSelected && { color: theme.tint }]}>{f.key}</Text>
-        </Pressable>
-
-        <TextInput
-          value={f.value}
-          onChangeText={(t) => setField(f.key, t)}
-          onFocus={() => {
-            setFocusedAttribute(f.key);
-            setSelectedGroup(null);
-            resetAddState();
-          }}
-          placeholder="Value"
-          placeholderTextColor={placeholderColor}
-          multiline
-          style={[styles.valueInput, { color: theme.text }]}
-        />
-
-        {isSelected && (
-          <View style={styles.rowActions}>
-            {isDeleting ? (
-              <View style={styles.confirmDeleteContainer}>
-                <Text style={[styles.confirmText, { color: theme.text }]}>Delete?</Text>
-                <Pressable onPress={() => confirmAttributeDeletion(f.key)} style={styles.iconButton}>
-                  <FontAwesome name="check" size={16} color={errorColor} />
+      <View style={styles.headerWrapper}>
+        <View style={styles.editHeaderRow}>
+          {isDeleting ? (
+            <View style={styles.deleteGroupConfirm}>
+              <Text style={[styles.deleteWarning, { color: errorColor }]}>Delete {item.group}?</Text>
+              <View style={styles.deleteActions}>
+                <Pressable onPress={() => deleteGroup(item.group)} style={[styles.deleteConfirmBtn, { backgroundColor: errorColor }]}>
+                  <Text style={styles.deleteBtnText}>Delete</Text>
                 </Pressable>
-                <Pressable onPress={cancelAttributeDeletion} style={styles.iconButton}>
-                  <FontAwesome name="close" size={16} color={theme.text} style={{ opacity: 0.5 }} />
+                <Pressable onPress={() => setGroupToDelete(null)}>
+                  <Text style={[styles.cancelBtnText, { color: theme.text }]}>Cancel</Text>
                 </Pressable>
               </View>
-            ) : (
-              <Pressable onPress={() => initiateDeleteAttribute(f.key)} style={styles.iconButton} hitSlop={8}>
-                <FontAwesome name="trash-o" size={16} color={theme.text} style={{ opacity: 0.3 }} />
+            </View>
+          ) : isRenaming ? (
+            <>
+              <TextInput
+                value={renamingGroup.current}
+                onChangeText={(t) => setRenamingGroup(prev => prev ? ({ ...prev, current: t }) : null)}
+                onBlur={saveGroupRename}
+                autoFocus
+                style={[styles.headerInput, { color: theme.text, borderBottomColor: theme.tint }]}
+              />
+              <Pressable onPress={saveGroupRename} style={styles.iconButton}>
+                <FontAwesome name="check" size={12} color={theme.tint} />
               </Pressable>
-            )}
+            </>
+          ) : (
+            <View style={styles.headerRow}>
+              <Pressable
+                onPress={() => setRenamingGroup({ original: item.group, current: item.group })}
+                onLongPress={() => setGroupToDelete(item.group)}
+                delayLongPress={500}
+              >
+                <Text style={styles.sectionHeader}>{item.group}</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderField = ({ item, drag, isActive }: RenderItemParams<FieldItem>) => {
+    const f = item.field;
+    const isSelected = focusedAttribute === f.key;
+    const isDeleting = attributeToDelete === f.key;
+    const isHighlighted = highlightedIds.includes(f.key);
+
+    return (
+      <ScaleDecorator>
+        <View
+          style={[
+            styles.row,
+            { backgroundColor: theme.cardBackground },
+            isSelected && { backgroundColor: theme.cardBackground }, // Highlight logic?
+            isActive && { backgroundColor: theme.tint, opacity: 0.9, borderRadius: 8 },
+            isHighlighted && { backgroundColor: colorScheme === 'dark' ? 'rgba(10, 132, 255, 0.1)' : 'rgba(0, 122, 255, 0.05)' }
+          ]}
+        >
+          <Pressable
+            onPressIn={drag}
+            onPress={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setFocusedAttribute(f.key);
+              if (isHighlighted) acknowledgeHighlight([f.key]);
+            }}
+            style={styles.labelContainer}
+          >
+            <Text style={[styles.label, (isSelected || isHighlighted) && { color: theme.tint }, isActive && { color: '#fff' }]}>{f.key}</Text>
+          </Pressable>
+
+          <TextInput
+            value={f.value}
+            onChangeText={(t) => upsertProfileField(f.key, t, f.group, 'user')}
+            onFocus={() => {
+              setFocusedAttribute(f.key);
+              if (isHighlighted) acknowledgeHighlight([f.key]);
+            }}
+            placeholder="Value"
+            placeholderTextColor={isActive ? 'rgba(255,255,255,0.6)' : placeholderColor}
+            multiline
+            style={[styles.valueInput, { color: isActive ? '#fff' : theme.text }]}
+            editable={!isActive}
+          />
+
+          {isSelected && !isActive && (
+            <View style={styles.rowActions}>
+              {isDeleting ? (
+                <Pressable onPress={() => { deleteProfileField(f.key); setAttributeToDelete(null); }} style={styles.iconButton}>
+                  <FontAwesome name="check" size={16} color={errorColor} />
+                </Pressable>
+              ) : (
+                <Pressable onPress={() => setAttributeToDelete(f.key)} style={styles.iconButton}>
+                  <FontAwesome name="trash-o" size={16} color={theme.text} style={{ opacity: 0.3 }} />
+                </Pressable>
+              )}
+            </View>
+          )}
+
+          {!isSelected && !isActive && (
+            <Pressable onPressIn={drag} style={{ padding: 8 }}>
+              <FontAwesome name="bars" size={12} color={theme.text} style={{ opacity: 0.2 }} />
+            </Pressable>
+          )}
+        </View>
+        <View style={[styles.separator, { backgroundColor: borderColor }]} />
+      </ScaleDecorator>
+    );
+  };
+
+  const renderFooter = (item: FooterItem) => {
+    const isAdding = activeAddGroup === item.group;
+    return (
+      <View style={[styles.footerContainer, { backgroundColor: theme.cardBackground }]}>
+        {isAdding ? (
+          <View style={[styles.row, styles.addAttributeRow, { borderTopColor: borderColor }]}>
+            <TextInput
+              value={newKey}
+              onChangeText={setNewKey}
+              placeholder="Attribute"
+              placeholderTextColor={placeholderColor}
+              style={[styles.smallInput, { color: theme.text, flex: 1, marginRight: 12 }]}
+              autoCapitalize="words"
+              autoFocus
+            />
+            <TextInput
+              value={newValue}
+              onChangeText={setNewValue}
+              placeholder="Value"
+              placeholderTextColor={placeholderColor}
+              style={[styles.smallInput, { color: theme.text, flex: 1, marginRight: 12 }]}
+              onSubmitEditing={() => saveToGroup(item.group)}
+            />
+            <Pressable onPress={() => saveToGroup(item.group)} style={[styles.actionButton, { backgroundColor: theme.tint }]}>
+              <FontAwesome name="check" size={12} color="#fff" />
+            </Pressable>
+            <Pressable onPress={resetAddState} style={[styles.actionButton, { backgroundColor: 'transparent', marginLeft: 4 }]}>
+              <FontAwesome name="close" size={12} color={theme.text} style={{ opacity: 0.5 }} />
+            </Pressable>
           </View>
+        ) : (
+          <Pressable
+            onPress={() => setActiveAddGroup(item.group)}
+            style={styles.addItemButton}
+          >
+            <Text style={[styles.addItemText, { color: theme.tint }]}>+ Add Item</Text>
+          </Pressable>
         )}
       </View>
     );
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <DraggableFlatList
+        data={data}
+        onDragEnd={onDragEnd}
+        keyExtractor={keyExtractor}
+        // @ts-ignore
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        renderItem={(params) => {
+          const { item } = params;
+          if (item.type === 'header') return renderHeader(item);
+          if (item.type === 'field') return renderField(params as RenderItemParams<FieldItem>);
+          if (item.type === 'footer') return renderFooter(item);
+          if (item.type === 'placeholder') return <View style={{ height: 100 }} />;
+          return null;
+        }}
+      />
 
-      {sortedGroupKeys.map(grpName => {
-        const items = groups[grpName];
-        if (!items || items.length === 0) return null;
-        const isGroupSelected = selectedGroup === grpName;
-        const isDeletingGroup = groupToDelete === grpName;
-
-        return (
-          <View key={grpName} style={styles.section}>
-            {/* Group Header */}
-            <View style={styles.headerWrapper}>
-              {isGroupSelected ? (
-                <View style={styles.editHeaderRow}>
-                  {isDeletingGroup ? (
-                    <View style={styles.deleteGroupConfirm}>
-                      <Text style={[styles.deleteWarning, { color: errorColor }]}>Delete entire group?</Text>
-                      <View style={styles.deleteActions}>
-                        <Pressable onPress={() => confirmDeleteGroup(grpName)} style={[styles.deleteConfirmBtn, { backgroundColor: errorColor }]}>
-                          <Text style={styles.deleteBtnText}>Delete</Text>
-                        </Pressable>
-                        <Pressable onPress={cancelDeleteGroup}>
-                          <Text style={[styles.cancelBtnText, { color: theme.text }]}>Cancel</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  ) : (
-                    <>
-                      <TextInput
-                        value={groupRenameVal}
-                        onChangeText={setGroupRenameVal}
-                        onBlur={() => saveGroupRename(grpName, false)}
-                        autoFocus
-                        style={[styles.headerInput, { color: theme.text, borderBottomColor: theme.tint }]}
-                      />
-                      <View style={styles.headerActions}>
-                        <Pressable onPress={() => saveGroupRename(grpName, true)} style={styles.iconButton}>
-                          <FontAwesome name="check" size={16} color={theme.tint} />
-                        </Pressable>
-                        <Pressable onPress={() => initiateDeleteGroup(grpName)} style={styles.iconButton}>
-                          <FontAwesome name="trash-o" size={16} color={theme.text} style={{ opacity: 0.4 }} />
-                        </Pressable>
-                      </View>
-                    </>
-                  )}
-                </View>
-              ) : (
-                <Pressable
-                  onPress={() => startRenameGroup(grpName)}
-                  style={styles.headerPressable}
-                >
-                  <Text style={styles.sectionHeader}>{grpName}</Text>
-                  <FontAwesome name="pencil" size={12} color={theme.text} style={{ opacity: 0, marginLeft: 8 }} />
-                </Pressable>
-              )}
-            </View>
-
-            {/* Card Content */}
-            <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
-              {items.map((f, i) => (
-                <React.Fragment key={f.key}>
-                  {i > 0 && <View style={[styles.separator, { backgroundColor: borderColor }]} />}
-                  {renderRow(f)}
-                </React.Fragment>
-              ))}
-
-              {/* Add Item Footer */}
-              {activeAddGroup === grpName ? (
-                renderAddAttributeRow(grpName, () => saveToGroup(grpName))
-              ) : (
-                <Pressable
-                  onPress={() => {
-                    setActiveAddGroup(grpName);
-                    setSelectedGroup(null);
-                    setFocusedAttribute(null);
-                  }}
-                  style={styles.addItemButton}
-                >
-                  <Text style={[styles.addItemText, { color: theme.tint }]}>+ Add Item</Text>
-                </Pressable>
-              )}
-            </View>
-          </View>
-        );
-      })}
-
-      {/* New Group Button */}
-      {creatingGroup ? (
-        <View style={styles.section}>
-          <View style={styles.headerWrapper}>
-            <TextInput
-              value={newGroupTempName}
-              onChangeText={setNewGroupTempName}
-              placeholder="NEW GROUP NAME"
-              placeholderTextColor={placeholderColor}
-              autoFocus
-              style={[styles.headerInput, { color: theme.text, borderBottomColor: theme.tint, width: '100%' }]}
-            />
-          </View>
-          <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
-            {renderAddAttributeRow('new', saveNewGroup)}
-          </View>
+      {/* Add new Group Button (Floating or at bottom?) 
+           Since DraggableFlatList takes full space, we can put this outside.
+           Or adds as a footer to the whole list.
+           Let's put it at the bottom.
+       */}
+      {!creatingGroup && (
+        <View style={styles.floatingBtnContainer}>
+          <Pressable
+            onPress={() => { setCreatingGroup(true); resetAddState(); }}
+            style={[styles.newGroupBtn, { backgroundColor: theme.tint }]}
+          >
+            <FontAwesome name="plus" size={16} color="#fff" />
+          </Pressable>
         </View>
-      ) : (
-        <Pressable
-          onPress={() => {
-            setCreatingGroup(true);
-            resetAddState();
-            setFocusedAttribute(null);
-            setSelectedGroup(null);
-          }}
-          style={[styles.newGroupBtn, { backgroundColor: theme.tint }]}
-        >
-          <FontAwesome name="plus" size={16} color="#fff" />
-        </Pressable>
       )}
 
-      {/* Logs Section */}
-      <View style={styles.section}>
-        <View style={styles.headerWrapper}>
-          <Text style={styles.sectionHeader}>Logs</Text>
+      {/* Modal/Overlay for New Group? Or just render it in list? 
+           For complexity, let's use a simple overlay or just conditional render at bottom 
+           if we didn't use DraggableFlatlist. 
+           With DraggableFlatList, it's easier to use a modal or overlay.
+           Let's use a simple absolute view for "New Group" creation form.
+       */}
+      {creatingGroup && (
+        <View style={[styles.newGroupOverlay, { backgroundColor: theme.background, borderColor: theme.tint }]}>
+          <Text style={[styles.label, { marginBottom: 12 }]}>New Group</Text>
+          <TextInput
+            value={newGroupTempName}
+            onChangeText={setNewGroupTempName}
+            placeholder="GROUP NAME"
+            placeholderTextColor={placeholderColor}
+            style={[styles.headerInput, { color: theme.text, marginBottom: 16, width: '100%' }]}
+            autoFocus
+          />
+          <View style={styles.row}>
+            <TextInput value={newKey} onChangeText={setNewKey} placeholder="Attr" placeholderTextColor={placeholderColor} style={[styles.smallInput, { color: theme.text, flex: 1, marginRight: 8 }]} />
+            <TextInput value={newValue} onChangeText={setNewValue} placeholder="Value" placeholderTextColor={placeholderColor} style={[styles.smallInput, { color: theme.text, flex: 1 }]} />
+          </View>
+          <View style={[styles.row, { marginTop: 16, justifyContent: 'flex-end', paddingVertical: 0 }]}>
+            <Pressable onPress={() => setCreatingGroup(false)} style={{ marginRight: 16 }}>
+              <Text style={{ color: theme.text, fontWeight: '600' }}>Cancel</Text>
+            </Pressable>
+            <Pressable onPress={handleCreateGroup} style={[styles.deleteConfirmBtn, { backgroundColor: theme.tint }]}>
+              <Text style={styles.deleteBtnText}>Create</Text>
+            </Pressable>
+          </View>
         </View>
-        <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
-          {logs && logs.length > 0 ? (
-            logs.map((log, i) => (
-              <React.Fragment key={log.id}>
-                {i > 0 && <View style={[styles.separator, { backgroundColor: borderColor }]} />}
-                <View style={styles.logRow}>
-                  <Text style={[styles.logTime, { color: theme.text }]}>
-                    {new Date(log.timestamp).toLocaleString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                  <Text style={[styles.logContent, { color: theme.text }]}>{log.content}</Text>
-                </View>
-              </React.Fragment>
-            ))
-          ) : (
-            <View style={styles.row}>
-              <Text style={[styles.label, { textTransform: 'none', opacity: 0.5 }]}>Empty.</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      <View style={{ height: 100 }} />
-    </ScrollView>
+      )}
+    </SafeAreaView>
   );
 }
 
@@ -377,19 +383,12 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
-    paddingTop: 60,
-  },
-  pageTitle: {
-    fontSize: 34,
-    fontWeight: '700',
-    marginBottom: 32,
-    letterSpacing: -0.5,
-  },
-  section: {
-    marginBottom: 32,
+    paddingTop: 20,
+    paddingBottom: 100,
   },
   headerWrapper: {
-    marginBottom: 12,
+    marginTop: 24,
+    marginBottom: 8,
     minHeight: 32,
     justifyContent: 'flex-end',
   },
@@ -399,10 +398,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     opacity: 0.5,
-  },
-  headerPressable: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   editHeaderRow: {
     flexDirection: 'row',
@@ -416,19 +411,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     minWidth: 150,
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  card: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    // Minimal shadow for depth
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+  headerRow: {
+    flexDirection: 'row', alignItems: 'center'
   },
   row: {
     flexDirection: 'row',
@@ -437,10 +421,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     minHeight: 56,
   },
+  footerContainer: {
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 0
+  },
+  // We need to handle the visual rounding manually or via styles
+  // Since we have separators and such.
+  // Actually, easiest is: 
+  // Header -> No bg
+  // Field -> Bg, sharp corners (unless first?)
+  // Footer -> Bg, bottom rounded.
+  // We need "first item" rounding. 
+  // But RenderItem doesn't easily know "am I first in group?".
+  // We can just rely on the fact headers are separators, and we can make fields have consistent look.
+  // Or, we can make the Header include the top rounding of the card?
+  // No, header is separate.
+  // Let's just make all fields square and the footer rounded?
+  // Or: ScaleDecorator might mess with borders.
+
   labelContainer: {
     width: 100,
     marginRight: 12,
-    paddingTop: 4, // Align with text input baseline
+    paddingTop: 4,
   },
   label: {
     fontSize: 12,
@@ -459,6 +463,7 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     width: '100%',
+    marginLeft: 16, // Indent separator
   },
   rowActions: {
     marginLeft: 8,
@@ -468,18 +473,8 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 8,
   },
-  confirmDeleteContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  confirmText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginRight: 4,
-  },
 
-  // Add Attribute Styles
+  // Footer / Add Item
   addItemButton: {
     padding: 16,
     alignItems: 'center',
@@ -508,7 +503,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Delete Group Styles
+  // Delete Group
   deleteGroupConfirm: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -540,33 +535,38 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
 
-  // New Group Button
+  // Floating Btn
+  floatingBtnContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center'
+  },
   newGroupBtn: {
-    marginTop: 24,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 40, // consistent spacing
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-
-  // Logs Styles
-  logRow: {
-    padding: 16,
-    gap: 4,
-  },
-  logTime: {
-    fontSize: 10, // Small timestamp
-    opacity: 0.5,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  logContent: {
-    fontSize: 14,
-    lineHeight: 20,
-    opacity: 0.9,
-  },
+  newGroupOverlay: {
+    position: 'absolute',
+    bottom: 40,
+    left: 20,
+    right: 20,
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  }
 });

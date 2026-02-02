@@ -204,7 +204,7 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
         onRequestClose={handleClose}>
         <View style={{ flex: 1 }}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             style={{ flex: 1 }}>
             <View style={[styles.modalOverlay, Platform.OS === 'web' && styles.webOverlay]}>

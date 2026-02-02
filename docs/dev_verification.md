@@ -17,8 +17,9 @@ Frontend Verification Guidelines
  Expectation: You should see tasks corresponding to the routine items you just loaded.
  Note: If the routine item time is '08:00', the task should show '8:00 AM' (or 08:00) and date should be today.
  Task Completing:
- Click the checkbox on a task.
- Verify: Task moves to "Done" (or disappears if filter is active) and status updates.
+ Click the checkbox on a task (e.g., "Wake up").
+ Verify: Task moves to "Done".
+ Verify: NO new duplicate task is immediately spawned (Checklist Style).
 
 4. Routine <-> Task Sync
  Update Routine Item:
@@ -64,3 +65,16 @@ Frontend Verification Guidelines
  Audit Log:
  Go to Settings -> Audit Log.
  Verify: Chronological entries exist for the actions performed above (e.g., "Sisy updated profile...", "Sisy added routine...").
+
+8. Daily Checklist Cycle
+ Import Routine:
+ Go to Settings -> Import Routine.
+ Paste a simple routine JSON (e.g., `[{"title":"New Daily", "time":"09:00"}]`).
+ Verify: "Present" tab immediately shows "New Daily" task.
+ Daily Reset (Simulation):
+ Delete the "New Daily" task from the Present list (or mark it done).
+ Wait 1 minute (for the periodic tick).
+ Verify: Since no "next task" exists and it is due today, the system should NOT regenerate it if it was done. 
+ (Wait, logic check: current logic regenerates if missing for today. If DONE, it exists. If DELETED, it is missing.)
+ Verify: If deleted, it should reappear (regenerate) after 1 minute if it was supposed to be there today.
+ This confirms the "Checklist" logic.

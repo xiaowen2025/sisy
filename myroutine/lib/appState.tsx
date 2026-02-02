@@ -35,6 +35,7 @@ type Action =
   | { type: 'pushChat'; message: ChatMessage }
   | { type: 'applyChatActions'; actions: ChatAction[] }
   | { type: 'addTask'; task: Task }
+  | { type: 'addTasks'; tasks: Task[] }
   | { type: 'updateTask'; taskId: string; patch: Partial<Omit<Task, 'id'>> }
   | { type: 'setRoutine'; items: RoutineItem[] }
   | { type: 'updateRoutineItem'; id: string; patch: Partial<Omit<RoutineItem, 'id'>> }
@@ -251,6 +252,8 @@ function reducer(state: State, action: Action): State {
       return applyChatActions(state, action.actions);
     case 'addTask':
       return { ...state, tasks: [action.task, ...state.tasks] };
+    case 'addTasks':
+      return { ...state, tasks: [...action.tasks, ...state.tasks] };
     case 'updateTask':
       return {
         ...state,
@@ -483,24 +486,96 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
+  // --- Daily Task Generation Logic ---
+  useEffect(() => {
+    if (!state.hydrated) return;
+
+    // Check coverage for today
+    const now = new Date();
+    const todayStr = now.toDateString();
+
+    // Identify ID's of routine items covered today (by tasks with scheduled_time)
+    const coveredRoutineHeaderIds = new Set();
+    state.tasks.forEach(t => {
+      // Only care about tasks that have a routine_item_id and a time
+      if (t.routine_item_id && t.scheduled_time) {
+        if (new Date(t.scheduled_time).toDateString() === todayStr) {
+          coveredRoutineHeaderIds.add(t.routine_item_id);
+        }
+      }
+    });
+
+    const newTasks: Task[] = [];
+
+    state.routine.forEach(item => {
+      // 1. Check if covered today
+      if (coveredRoutineHeaderIds.has(item.id)) return;
+
+      // 2. Check recurrence compatibility
+      const relatedTasks = state.tasks.filter(t => t.routine_item_id === item.id);
+
+      // Sort newest first
+      relatedTasks.sort((a, b) => {
+        const at = a.scheduled_time ? new Date(a.scheduled_time).valueOf() : 0;
+        const bt = b.scheduled_time ? new Date(b.scheduled_time).valueOf() : 0;
+        return bt - at;
+      });
+
+      const lastTask = relatedTasks[0];
+      let shouldGenerate = false;
+
+      if (!lastTask) {
+        // Never generated before -> generate now
+        shouldGenerate = true;
+      } else {
+        const lastDate = lastTask.scheduled_time ? new Date(lastTask.scheduled_time) : new Date(0);
+
+        // Reset times to midnight for accurate day diff logic
+        const d1 = new Date(lastDate); d1.setHours(0, 0, 0, 0);
+        const d2 = new Date(now); d2.setHours(0, 0, 0, 0);
+
+        const diffTime = Math.abs(d2.valueOf() - d1.valueOf());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        const interval = item.repeat_interval || 1;
+        if (diffDays >= interval) {
+          shouldGenerate = true;
+        }
+      }
+
+      if (shouldGenerate) {
+        newTasks.push(convertRoutineItemToTask(item));
+      }
+    });
+
+    if (newTasks.length > 0) {
+      dispatch({ type: 'addTasks', tasks: newTasks });
+    }
+  }, [state.hydrated, tick]);
+
   const todoSorted = useMemo(() => sortTodoTasks(state.tasks), [state.tasks]);
 
   // Smart Visibility Logic
   const { nowTask, nextTask, pastTask, timeline } = useMemo(() => {
-    // 0. Filter out future tasks (tomorrow or later)
+    // 0. Filter to show ONLY Today's tasks (Past days hidden from view, future hidden)
+    const now = new Date();
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
     const todayTasks = todoSorted.filter((t) => {
-      if (!t.scheduled_time) return true;
-      return new Date(t.scheduled_time).getTime() <= endOfToday.getTime();
+      if (!t.scheduled_time) return true; // Keep unscheduled? Maybe, or hide. Let's keep for now.
+      const tTime = new Date(t.scheduled_time).getTime();
+      return tTime >= startOfToday.getTime() && tTime <= endOfToday.getTime();
     });
 
     // 1. Filter out passed auto-complete items
     const visible = filterVisibleTasks(todayTasks);
 
     // 2. Smart Queue Sort
-    const now = Date.now();
+    const visibilityNow = Date.now();
     const overdue: Task[] = [];
     const upcoming: Task[] = [];
 
@@ -508,8 +583,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!t.scheduled_time) {
         upcoming.push(t);
       } else {
-        const tTime = Date.parse(t.scheduled_time);
-        if (tTime < now) {
+        const taskTime = Date.parse(t.scheduled_time);
+        if (taskTime < visibilityNow) {
           overdue.push(t);
         } else {
           upcoming.push(t);
@@ -677,22 +752,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addLog(comment || '', 'task_complete', task.routine_item_id);
     }
 
-    // 3. Check if it repeats
-    if (task && task.repeat_interval && task.scheduled_time) {
-      // Spawn next occurrence
-      const nextTime = new Date(task.scheduled_time);
-      nextTime.setDate(nextTime.getDate() + task.repeat_interval);
-
-      const nextTask: Task = {
-        ...task,
-        id: makeId('task'),
-        scheduled_time: nextTime.toISOString(),
-        status: 'todo',
-        // Ensure we don't accidentally copy over some state we don't want, but for now strict clone is mostly fine
-      };
-
-      dispatch({ type: 'addTask', task: nextTask });
-    }
   }
 
   function rescheduleTask(taskId: string, scheduled_time: string | null, comment?: string) {
@@ -806,7 +865,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           id: it.id || makeId('routine'),
           auto_complete: !!it.auto_complete
         }));
-        dispatch({ type: 'setRoutine', items: sane });
+
+        // Regenerate tasks for the current day based on the new routine
+        const newTasks = sane.map(convertRoutineItemToTask);
+        const nonRoutineTasks = state.tasks.filter((t) => t.source !== 'routine');
+
+        // Use loadRoutineTemplate action which updates both routine and tasks
+        dispatch({ type: 'loadRoutineTemplate', template: sane, tasks: [...nonRoutineTasks, ...newTasks] });
         alert('Routine imported successfully.');
       } catch (e) {
         alert('Failed to import: ' + e);

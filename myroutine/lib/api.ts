@@ -13,11 +13,13 @@ export async function sendChatMessage(req: ChatSendRequest): Promise<ChatSendRes
     if (req.user_context) formData.append('user_context', req.user_context);
     if (req.message_history) formData.append('message_history', JSON.stringify(req.message_history));
 
-    // TODO: handle imageUri -> actual file usage if needed, 
-    // but main.py handles image uploads via separate logic usually or expects a file object.
-    // For now we just pass text fields or if we had a blob we'd append it.
-    // Since req.imageUri is a string uri, if we want to send it as a file we need to fetch it first.
-    // For this task we focus on user_context.
+    // Handle image file
+    if (req.imageUri) {
+      const resp = await fetch(req.imageUri);
+      const blob = await resp.blob();
+      // "image.jpg" is a placeholder name; the backend might ignore it or use it for extension detection
+      formData.append('image', blob, 'image.jpg');
+    }
 
     const installId = await getInstallId();
 

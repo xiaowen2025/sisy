@@ -27,6 +27,7 @@ type State = {
   logs: Log[];
   highlightedIds: string[];
   isTyping: boolean;
+  pendingChatDraft: string | null;
 };
 
 type Action =
@@ -47,7 +48,10 @@ type Action =
   | { type: 'skipTask'; taskId: string }
   | { type: 'addLog'; log: Log }
   | { type: 'acknowledgeHighlight'; ids: string[] }
-  | { type: 'setTyping'; isTyping: boolean };
+  | { type: 'setTyping'; isTyping: boolean }
+  | { type: 'revertRoutineDescription'; id: string }
+  | { type: 'revertProfileValue'; key: string }
+  | { type: 'setPendingChatDraft'; text: string | null };
 
 function sortTodoTasks(tasks: Task[]): Task[] {
   const todo = tasks.filter((t) => t.status === 'todo');
@@ -262,10 +266,18 @@ function reducer(state: State, action: Action): State {
     case 'setRoutine':
       return { ...state, routine: sortRoutineItems(action.items) };
     case 'updateRoutineItem': {
-      // 1. Update routine item
-      const nextRoutine = state.routine.map((item) =>
-        item.id === action.id ? { ...item, ...action.patch } : item
-      );
+      // 1. Update routine item, saving previous description if it's changing
+      const nextRoutine = state.routine.map((item) => {
+        if (item.id !== action.id) return item;
+
+        // Save previous description before update (only if description is actually changing)
+        let previousDescription = item.previousDescription;
+        if (action.patch.description !== undefined && action.patch.description !== item.description) {
+          previousDescription = item.description;
+        }
+
+        return { ...item, ...action.patch, previousDescription };
+      });
 
       // 2. Sync changes to today's tasks which are linked to this routine item
       //    Only update if they are 'todo'. If 'done', keep history.
@@ -336,10 +348,26 @@ function reducer(state: State, action: Action): State {
     }
     case 'upsertProfileField': {
       const idx = state.profile.findIndex((f) => f.key === action.field.key);
-      const nextProfile =
-        idx >= 0
-          ? state.profile.map((f) => (f.key === action.field.key ? action.field : f))
-          : [action.field, ...state.profile];
+      let nextProfile: ProfileField[];
+
+      if (idx >= 0) {
+        // Update existing field, save previous value if it's changing
+        nextProfile = state.profile.map((f) => {
+          if (f.key !== action.field.key) return f;
+
+          // Save previous value before update (only if value is actually changing)
+          let previousValue = f.previousValue;
+          if (action.field.value !== f.value) {
+            previousValue = f.value;
+          }
+
+          return { ...action.field, previousValue };
+        });
+      } else {
+        // New field, no previous value
+        nextProfile = [action.field, ...state.profile];
+      }
+
       return { ...state, profile: nextProfile };
     }
     case 'deleteProfileField':
@@ -360,6 +388,33 @@ function reducer(state: State, action: Action): State {
       };
     case 'setTyping':
       return { ...state, isTyping: action.isTyping };
+    case 'revertRoutineDescription': {
+      const nextRoutine = state.routine.map((item) => {
+        if (item.id !== action.id || !item.previousDescription) return item;
+        // Swap: current becomes previous, previous becomes current
+        return {
+          ...item,
+          description: item.previousDescription,
+          previousDescription: item.description,
+        };
+      });
+      return { ...state, routine: sortRoutineItems(nextRoutine) };
+    }
+    case 'revertProfileValue': {
+      const nextProfile = state.profile.map((f) => {
+        if (f.key !== action.key || !f.previousValue) return f;
+        // Swap: current becomes previous, previous becomes current
+        return {
+          ...f,
+          value: f.previousValue,
+          previousValue: f.value,
+          updated_at: nowIso(),
+        };
+      });
+      return { ...state, profile: nextProfile };
+    }
+    case 'setPendingChatDraft':
+      return { ...state, pendingChatDraft: action.text };
     default:
       return state;
   }
@@ -375,6 +430,7 @@ const initialState: State = {
   logs: [],
   highlightedIds: [],
   isTyping: false,
+  pendingChatDraft: null,
 };
 
 type AppStateApi = {
@@ -393,6 +449,7 @@ type AppStateApi = {
   timeline: Task[];
   sendChat: (tab: TabId, text: string, imageUri?: string) => Promise<void>;
   completeTask: (taskId: string, comment?: string) => void;
+  uncompleteTask: (taskId: string) => void;
   rescheduleTask: (taskId: string, scheduled_time: string | null, comment?: string) => void;
   addRoutineItem: () => void;
   updateRoutineItem: (id: string, patch: Partial<Omit<RoutineItem, 'id'>>) => void;
@@ -409,6 +466,10 @@ type AppStateApi = {
   setProfile: (profile: ProfileField[]) => void;
   addLog: (content: string, related_action: Log['related_action'], routine_item_id?: string) => void;
   acknowledgeHighlight: (ids: string[]) => void;
+  revertRoutineDescription: (id: string) => void;
+  revertProfileValue: (key: string) => void;
+  requestChatDraft: (text: string | null) => void;
+  pendingChatDraft: string | null;
 };
 
 const Ctx = createContext<AppStateApi | null>(null);
@@ -453,6 +514,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             logs: [],
             highlightedIds: [],
             isTyping: false,
+            pendingChatDraft: null,
           },
         });
       }
@@ -473,6 +535,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       logs: state.logs,
       highlightedIds: state.highlightedIds,
       isTyping: state.isTyping,
+      pendingChatDraft: null, // ephemeral, do not persist value
     };
     void setJson(STATE_KEY, persist);
   }, [state.hydrated, state.conversation_id, state.chat, state.tasks, state.routine, state.profile, state.logs, state.highlightedIds]);
@@ -729,13 +792,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     // Only log if we have content OR it's a routine item action
     if (!content && !routine_item_id) return;
 
+    // Build default content with routine item title if no comment provided
+    let logContent = content;
+    if (!content) {
+      const routineItem = routine_item_id ? state.routine.find(r => r.id === routine_item_id) : null;
+      const actionLabel = related_action.replace('task_', '').replace('_', ' ');
+
+      if (routineItem) {
+        logContent = `${routineItem.title} - ${actionLabel}`;
+      } else {
+        logContent = actionLabel;
+      }
+    }
+
     dispatch({
       type: 'addLog',
       log: {
         id: makeId('log'),
         timestamp: nowIso(),
         related_action,
-        content: content || (related_action.replace('task_', '').replace('_', ' ')), // Default text if empty
+        content: logContent,
         author: 'user',
         routine_item_id,
       },
@@ -752,6 +828,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addLog(comment || '', 'task_complete', task.routine_item_id);
     }
 
+  }
+
+  function uncompleteTask(taskId: string) {
+    // Mark task as todo again
+    dispatch({ type: 'updateTask', taskId, patch: { status: 'todo' } });
   }
 
   function rescheduleTask(taskId: string, scheduled_time: string | null, comment?: string) {
@@ -825,6 +906,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  function requestChatDraft(text: string | null) {
+    dispatch({ type: 'setPendingChatDraft', text });
+  }
+
   const api: AppStateApi = {
     hydrated: state.hydrated,
     conversation_id: state.conversation_id,
@@ -841,6 +926,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     timeline,
     sendChat,
     completeTask,
+    uncompleteTask,
     rescheduleTask,
     addRoutineItem,
     updateRoutineItem,
@@ -894,6 +980,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setProfile: (profile) => dispatch({ type: 'setProfile', profile }),
     addLog,
     acknowledgeHighlight: (ids) => dispatch({ type: 'acknowledgeHighlight', ids }),
+    revertRoutineDescription: (id) => dispatch({ type: 'revertRoutineDescription', id }),
+    revertProfileValue: (key) => dispatch({ type: 'revertProfileValue', key }),
+    requestChatDraft,
+    pendingChatDraft: state.pendingChatDraft,
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

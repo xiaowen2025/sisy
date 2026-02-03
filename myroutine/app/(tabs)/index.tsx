@@ -102,7 +102,17 @@ const TaskCard = ({
         {task.title}
       </Text>
       {isCompleted && (
-        <Ionicons name="checkmark-circle" size={24} color={Colors.light.tint} style={{ position: 'absolute', right: 0, top: 18 }} />
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+            onComplete();
+          }}
+          style={{ position: 'absolute', right: 0, top: 18 }}
+        >
+          <Ionicons name="checkmark-circle" size={24} color={Colors.light.tint} />
+        </Pressable>
       )}
     </View>
   );
@@ -179,7 +189,7 @@ const TaskCard = ({
 import { RoutineItemModal } from '@/components/RoutineItemModal';
 
 export default function PresentScreen() {
-  const { nowTask, timeline, completeTask, addLog, skipTask } = useAppState();
+  const { nowTask, timeline, completeTask, uncompleteTask, addLog, skipTask } = useAppState();
   const [rescheduleVisible, setRescheduleVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [completionVisible, setCompletionVisible] = useState(false);
@@ -256,7 +266,11 @@ export default function PresentScreen() {
     });
 
   const handleQuickComplete = (task: Task) => {
-    completeTask(task.id);
+    if (task.status === 'done') {
+      uncompleteTask(task.id);
+    } else {
+      completeTask(task.id);
+    }
   };
 
   const handleCompleteWithComment = (task: Task) => {
@@ -322,13 +336,13 @@ export default function PresentScreen() {
             );
           })}
 
-          {timeline.length === 0 && (
-            <View style={styles.card}>
-              <Text style={styles.title}>All caught up. Enjoy your moment.</Text>
-            </View>
-          )}
-
         </View>
+
+        {timeline.length > 0 && timeline.filter(task => task.status === 'todo').length === 0 && (
+          <View style={styles.card}>
+            <Text style={styles.title}>All caught up. Enjoy your moment.</Text>
+          </View>
+        )}
 
         <RescheduleModal
           visible={rescheduleVisible}

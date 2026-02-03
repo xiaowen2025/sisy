@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -81,12 +81,34 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
   const insets = useSafeAreaInsets();
   const bottom = bottomOffset + (Platform.OS === 'android' ? insets.bottom : 0);
 
-  const { chat, sendChat, isTyping } = useAppState();
+  const { chat, sendChat, isTyping, pendingChatDraft, requestChatDraft } = useAppState();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const inputRef = useRef<TextInput | null>(null);
+  const drawerInputRef = useRef<TextInput | null>(null);
   const justClosed = useRef(false);
+
+  // Auto-focus the drawer input when modal opens (triggers keyboard on mobile)
+  useEffect(() => {
+    if (open) {
+      // Small delay to allow the modal to render before focusing
+      const timer = setTimeout(() => {
+        drawerInputRef.current?.focus();
+      }, Platform.OS === 'ios' ? 100 : 50);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  // Watch for pending chat drafts from other components (e.g. AI Refine)
+  useEffect(() => {
+    if (pendingChatDraft) {
+      setText(pendingChatDraft);
+      setOpen(true);
+      // Clear the draft from global state so it doesn't re-trigger
+      requestChatDraft(null);
+    }
+  }, [pendingChatDraft]);
 
   async function onSend() {
     const trimmed = text.trim();
@@ -203,6 +225,7 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
         presentationStyle={Platform.OS === 'web' ? 'overFullScreen' : 'pageSheet'}
         onRequestClose={handleClose}>
         <View style={{ flex: 1 }}>
+          {/* @ts-ignore - React Native type definition issue */}
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
@@ -240,7 +263,8 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
                   ) : (
                     <FlatList
                       data={reversedChat}
-                      inverted
+                      // @ts-expect-error inverted prop exists but TypeScript defs don't recognize it
+                      inverted={true}
                       keyExtractor={(item) => item.id}
                       contentContainerStyle={styles.history}
                       showsVerticalScrollIndicator={false}
@@ -357,6 +381,7 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
 
                   <View style={[styles.inputContainer, { backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
                     <TextInput
+                      ref={drawerInputRef}
                       value={text}
                       onChangeText={setText}
                       placeholder="Message..."

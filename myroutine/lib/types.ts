@@ -23,6 +23,7 @@ export type RoutineItem = {
   time: string | null;
   auto_complete: boolean;
   description?: string;
+  previousDescription?: string; // Stores last version for revert
   repeat_interval?: number; // 1 = daily, 3 = every 3 days, etc.
 };
 
@@ -30,6 +31,7 @@ export type ProfileFieldSource = 'user' | 'learned';
 export type ProfileField = {
   key: string;
   value: string;
+  previousValue?: string; // Stores last version for revert
   group?: string;
   source: ProfileFieldSource;
   updated_at: Iso8601;

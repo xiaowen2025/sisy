@@ -1,5 +1,19 @@
 # SiSy Demo Script
 
+I built this app to help me manage my daily routine.
+This app is inspired by the **"Getting Things Done"** methodology and the 4 Laws of Behavior Change from the book **"Atomic Habits"**.
+
+On the minimalist present page, user is being guided to focus on the current task.
+
+On the routine page, user is able to define the routine with description. 
+A routine item can be set to auto complete, which means it will be completed automatically when the time comes. This is to further allow user to focus on the important task. 
+
+On the me page, semi-structured user profile is maintained. The profile and the routine page contains all the data that Sisy knows about the user.
+
+
+
+Let me walk you through the apps and explain the design philosophy.
+
 ## Goal
 Showcase SiSy as an **intelligent, minimalist companion** that turns chaos into structure and adapts to you.
 

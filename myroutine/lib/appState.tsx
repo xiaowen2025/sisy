@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useMemo, useReducer } from
 import { sendChatMessage } from '@/lib/api';
 import { getJson, setJson } from '@/lib/storage';
 import { applyTimeToDate, makeId, nowIso } from '@/lib/dateUtils';
-import { getFreshRoutine, ROUTINE_TEMPLATE, WELLNESS_TEMPLATE } from '@/lib/templates';
+import { getFreshRoutine, ROUTINE_TEMPLATE } from '@/lib/templates';
 import type {
   ChatAction,
   ChatMessage,
@@ -26,6 +26,8 @@ type State = {
   profile: ProfileField[];
   logs: Log[];
   highlightedIds: string[];
+  isTyping: boolean;
+  pendingChatDraft: string | null;
 };
 
 type Action =
@@ -34,6 +36,7 @@ type Action =
   | { type: 'pushChat'; message: ChatMessage }
   | { type: 'applyChatActions'; actions: ChatAction[] }
   | { type: 'addTask'; task: Task }
+  | { type: 'addTasks'; tasks: Task[] }
   | { type: 'updateTask'; taskId: string; patch: Partial<Omit<Task, 'id'>> }
   | { type: 'setRoutine'; items: RoutineItem[] }
   | { type: 'updateRoutineItem'; id: string; patch: Partial<Omit<RoutineItem, 'id'>> }
@@ -44,7 +47,14 @@ type Action =
   | { type: 'setProfile'; profile: ProfileField[] }
   | { type: 'skipTask'; taskId: string }
   | { type: 'addLog'; log: Log }
-  | { type: 'acknowledgeHighlight'; ids: string[] };
+  | { type: 'acknowledgeHighlight'; ids: string[] }
+  | { type: 'setTyping'; isTyping: boolean }
+  | { type: 'revertRoutineDescription'; id: string }
+  | { type: 'revertProfileValue'; key: string }
+  | { type: 'revertRoutineDescription'; id: string }
+  | { type: 'revertProfileValue'; key: string }
+  | { type: 'setPendingChatDraft'; text: string | null }
+  | { type: 'clearChat' };
 
 function sortTodoTasks(tasks: Task[]): Task[] {
   const todo = tasks.filter((t) => t.status === 'todo');
@@ -239,15 +249,18 @@ function convertRoutineItemToTask(item: RoutineItem): Task {
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'hydrate':
-      return { hydrated: true, ...action.state };
+      return { hydrated: true, ...action.state, chat: (action.state.chat || []).slice(-100), isTyping: false };
     case 'setConversationId':
       return { ...state, conversation_id: action.conversation_id };
     case 'pushChat':
-      return { ...state, chat: [...state.chat, action.message] };
+      const newChat = [...state.chat, action.message];
+      return { ...state, chat: newChat.slice(-100) };
     case 'applyChatActions':
       return applyChatActions(state, action.actions);
     case 'addTask':
       return { ...state, tasks: [action.task, ...state.tasks] };
+    case 'addTasks':
+      return { ...state, tasks: [...action.tasks, ...state.tasks] };
     case 'updateTask':
       return {
         ...state,
@@ -256,10 +269,18 @@ function reducer(state: State, action: Action): State {
     case 'setRoutine':
       return { ...state, routine: sortRoutineItems(action.items) };
     case 'updateRoutineItem': {
-      // 1. Update routine item
-      const nextRoutine = state.routine.map((item) =>
-        item.id === action.id ? { ...item, ...action.patch } : item
-      );
+      // 1. Update routine item, saving previous description if it's changing
+      const nextRoutine = state.routine.map((item) => {
+        if (item.id !== action.id) return item;
+
+        // Save previous description before update (only if description is actually changing)
+        let previousDescription = item.previousDescription;
+        if (action.patch.description !== undefined && action.patch.description !== item.description) {
+          previousDescription = item.description;
+        }
+
+        return { ...item, ...action.patch, previousDescription };
+      });
 
       // 2. Sync changes to today's tasks which are linked to this routine item
       //    Only update if they are 'todo'. If 'done', keep history.
@@ -330,10 +351,26 @@ function reducer(state: State, action: Action): State {
     }
     case 'upsertProfileField': {
       const idx = state.profile.findIndex((f) => f.key === action.field.key);
-      const nextProfile =
-        idx >= 0
-          ? state.profile.map((f) => (f.key === action.field.key ? action.field : f))
-          : [action.field, ...state.profile];
+      let nextProfile: ProfileField[];
+
+      if (idx >= 0) {
+        // Update existing field, save previous value if it's changing
+        nextProfile = state.profile.map((f) => {
+          if (f.key !== action.field.key) return f;
+
+          // Save previous value before update (only if value is actually changing)
+          let previousValue = f.previousValue;
+          if (action.field.value !== f.value) {
+            previousValue = f.value;
+          }
+
+          return { ...action.field, previousValue };
+        });
+      } else {
+        // New field, no previous value
+        nextProfile = [action.field, ...state.profile];
+      }
+
       return { ...state, profile: nextProfile };
     }
     case 'deleteProfileField':
@@ -352,6 +389,37 @@ function reducer(state: State, action: Action): State {
         ...state,
         highlightedIds: state.highlightedIds.filter(id => !action.ids.includes(id))
       };
+    case 'setTyping':
+      return { ...state, isTyping: action.isTyping };
+    case 'revertRoutineDescription': {
+      const nextRoutine = state.routine.map((item) => {
+        if (item.id !== action.id || !item.previousDescription) return item;
+        // Swap: current becomes previous, previous becomes current
+        return {
+          ...item,
+          description: item.previousDescription,
+          previousDescription: item.description,
+        };
+      });
+      return { ...state, routine: sortRoutineItems(nextRoutine) };
+    }
+    case 'revertProfileValue': {
+      const nextProfile = state.profile.map((f) => {
+        if (f.key !== action.key || !f.previousValue) return f;
+        // Swap: current becomes previous, previous becomes current
+        return {
+          ...f,
+          value: f.previousValue,
+          previousValue: f.value,
+          updated_at: nowIso(),
+        };
+      });
+      return { ...state, profile: nextProfile };
+    }
+    case 'setPendingChatDraft':
+      return { ...state, pendingChatDraft: action.text };
+    case 'clearChat':
+      return { ...state, chat: [], conversation_id: null };
     default:
       return state;
   }
@@ -366,6 +434,8 @@ const initialState: State = {
   profile: [],
   logs: [],
   highlightedIds: [],
+  isTyping: false,
+  pendingChatDraft: null,
 };
 
 type AppStateApi = {
@@ -377,18 +447,20 @@ type AppStateApi = {
   profile: ProfileField[];
   logs: Log[];
   highlightedIds: string[];
+  isTyping: boolean;
   nowTask: Task | null;
   nextTask: Task | null;
   pastTask: Task | null;
   timeline: Task[];
   sendChat: (tab: TabId, text: string, imageUri?: string) => Promise<void>;
   completeTask: (taskId: string, comment?: string) => void;
+  uncompleteTask: (taskId: string) => void;
   rescheduleTask: (taskId: string, scheduled_time: string | null, comment?: string) => void;
   addRoutineItem: () => void;
   updateRoutineItem: (id: string, patch: Partial<Omit<RoutineItem, 'id'>>) => void;
   deleteRoutineItem: (id: string) => void;
   loadRoutineTemplate: () => void;
-  loadWellnessTemplate: () => void;
+
   upsertProfileField: (key: string, value: string, group?: string, source?: ProfileField['source']) => void;
   deleteProfileField: (key: string) => void;
   deleteProfileGroup: (group: string) => void;
@@ -399,6 +471,11 @@ type AppStateApi = {
   setProfile: (profile: ProfileField[]) => void;
   addLog: (content: string, related_action: Log['related_action'], routine_item_id?: string) => void;
   acknowledgeHighlight: (ids: string[]) => void;
+  revertRoutineDescription: (id: string) => void;
+  revertProfileValue: (key: string) => void;
+  requestChatDraft: (text: string | null) => void;
+  pendingChatDraft: string | null;
+  clearChat: () => void;
 };
 
 const Ctx = createContext<AppStateApi | null>(null);
@@ -442,6 +519,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             ],
             logs: [],
             highlightedIds: [],
+            isTyping: false,
+            pendingChatDraft: null,
           },
         });
       }
@@ -461,6 +540,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       profile: state.profile,
       logs: state.logs,
       highlightedIds: state.highlightedIds,
+      isTyping: state.isTyping,
+      pendingChatDraft: null, // ephemeral, do not persist value
     };
     void setJson(STATE_KEY, persist);
   }, [state.hydrated, state.conversation_id, state.chat, state.tasks, state.routine, state.profile, state.logs, state.highlightedIds]);
@@ -474,24 +555,96 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
+  // --- Daily Task Generation Logic ---
+  useEffect(() => {
+    if (!state.hydrated) return;
+
+    // Check coverage for today
+    const now = new Date();
+    const todayStr = now.toDateString();
+
+    // Identify ID's of routine items covered today (by tasks with scheduled_time)
+    const coveredRoutineHeaderIds = new Set();
+    state.tasks.forEach(t => {
+      // Only care about tasks that have a routine_item_id and a time
+      if (t.routine_item_id && t.scheduled_time) {
+        if (new Date(t.scheduled_time).toDateString() === todayStr) {
+          coveredRoutineHeaderIds.add(t.routine_item_id);
+        }
+      }
+    });
+
+    const newTasks: Task[] = [];
+
+    state.routine.forEach(item => {
+      // 1. Check if covered today
+      if (coveredRoutineHeaderIds.has(item.id)) return;
+
+      // 2. Check recurrence compatibility
+      const relatedTasks = state.tasks.filter(t => t.routine_item_id === item.id);
+
+      // Sort newest first
+      relatedTasks.sort((a, b) => {
+        const at = a.scheduled_time ? new Date(a.scheduled_time).valueOf() : 0;
+        const bt = b.scheduled_time ? new Date(b.scheduled_time).valueOf() : 0;
+        return bt - at;
+      });
+
+      const lastTask = relatedTasks[0];
+      let shouldGenerate = false;
+
+      if (!lastTask) {
+        // Never generated before -> generate now
+        shouldGenerate = true;
+      } else {
+        const lastDate = lastTask.scheduled_time ? new Date(lastTask.scheduled_time) : new Date(0);
+
+        // Reset times to midnight for accurate day diff logic
+        const d1 = new Date(lastDate); d1.setHours(0, 0, 0, 0);
+        const d2 = new Date(now); d2.setHours(0, 0, 0, 0);
+
+        const diffTime = Math.abs(d2.valueOf() - d1.valueOf());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        const interval = item.repeat_interval || 1;
+        if (diffDays >= interval) {
+          shouldGenerate = true;
+        }
+      }
+
+      if (shouldGenerate) {
+        newTasks.push(convertRoutineItemToTask(item));
+      }
+    });
+
+    if (newTasks.length > 0) {
+      dispatch({ type: 'addTasks', tasks: newTasks });
+    }
+  }, [state.hydrated, tick]);
+
   const todoSorted = useMemo(() => sortTodoTasks(state.tasks), [state.tasks]);
 
   // Smart Visibility Logic
   const { nowTask, nextTask, pastTask, timeline } = useMemo(() => {
-    // 0. Filter out future tasks (tomorrow or later)
+    // 0. Filter to show ONLY Today's tasks (Past days hidden from view, future hidden)
+    const now = new Date();
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
     const todayTasks = todoSorted.filter((t) => {
-      if (!t.scheduled_time) return true;
-      return new Date(t.scheduled_time).getTime() <= endOfToday.getTime();
+      if (!t.scheduled_time) return true; // Keep unscheduled? Maybe, or hide. Let's keep for now.
+      const tTime = new Date(t.scheduled_time).getTime();
+      return tTime >= startOfToday.getTime() && tTime <= endOfToday.getTime();
     });
 
     // 1. Filter out passed auto-complete items
     const visible = filterVisibleTasks(todayTasks);
 
     // 2. Smart Queue Sort
-    const now = Date.now();
+    const visibilityNow = Date.now();
     const overdue: Task[] = [];
     const upcoming: Task[] = [];
 
@@ -499,8 +652,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!t.scheduled_time) {
         upcoming.push(t);
       } else {
-        const tTime = Date.parse(t.scheduled_time);
-        if (tTime < now) {
+        const taskTime = Date.parse(t.scheduled_time);
+        if (taskTime < visibilityNow) {
           overdue.push(t);
         } else {
           upcoming.push(t);
@@ -580,7 +733,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   async function sendChat(tab: TabId, text: string, imageUri?: string) {
     const userMsg: ChatMessage = { id: makeId('msg'), role: 'user', tab, text, imageUri, created_at: nowIso() };
+
+    // --- Special Commands ---
+    if (text.trim() === '/reset') {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.clear();
+        dispatch({
+          type: 'hydrate',
+          state: { ...initialState, chat: [] } // Explicitly clear chat
+        });
+        alert('App data cleared. State reset.');
+      } catch (e) {
+        alert('Failed to reset: ' + e);
+      }
+      return;
+    }
+    // ------------------------
+
     dispatch({ type: 'pushChat', message: userMsg });
+    dispatch({ type: 'setTyping', isTyping: true });
 
     // Try backend if configured; otherwise fall back to a minimal local behavior.
     let reply: ChatSendResponse | null = null;
@@ -604,6 +776,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         assistant_text: 'Got it. (Offline/Error)',
         actions: [{ type: 'create_task', title: text.trim() || 'Untitled', scheduled_time: null }],
       };
+    } finally {
+      dispatch({ type: 'setTyping', isTyping: false });
     }
 
     dispatch({ type: 'setConversationId', conversation_id: reply.conversation_id });
@@ -624,13 +798,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     // Only log if we have content OR it's a routine item action
     if (!content && !routine_item_id) return;
 
+    // Build default content with routine item title if no comment provided
+    let logContent = content;
+    if (!content) {
+      const routineItem = routine_item_id ? state.routine.find(r => r.id === routine_item_id) : null;
+      const actionLabel = related_action.replace('task_', '').replace('_', ' ');
+
+      if (routineItem) {
+        logContent = `${routineItem.title} - ${actionLabel}`;
+      } else {
+        logContent = actionLabel;
+      }
+    }
+
     dispatch({
       type: 'addLog',
       log: {
         id: makeId('log'),
         timestamp: nowIso(),
         related_action,
-        content: content || (related_action.replace('task_', '').replace('_', ' ')), // Default text if empty
+        content: logContent,
         author: 'user',
         routine_item_id,
       },
@@ -647,22 +834,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addLog(comment || '', 'task_complete', task.routine_item_id);
     }
 
-    // 3. Check if it repeats
-    if (task && task.repeat_interval && task.scheduled_time) {
-      // Spawn next occurrence
-      const nextTime = new Date(task.scheduled_time);
-      nextTime.setDate(nextTime.getDate() + task.repeat_interval);
+  }
 
-      const nextTask: Task = {
-        ...task,
-        id: makeId('task'),
-        scheduled_time: nextTime.toISOString(),
-        status: 'todo',
-        // Ensure we don't accidentally copy over some state we don't want, but for now strict clone is mostly fine
-      };
-
-      dispatch({ type: 'addTask', task: nextTask });
-    }
+  function uncompleteTask(taskId: string) {
+    // Mark task as todo again
+    dispatch({ type: 'updateTask', taskId, patch: { status: 'todo' } });
   }
 
   function rescheduleTask(taskId: string, scheduled_time: string | null, comment?: string) {
@@ -703,12 +879,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'loadRoutineTemplate', template, tasks: [...nonRoutineTasks, ...newTasks] });
   }
 
-  function loadWellnessTemplate() {
-    const template = getFreshRoutine(WELLNESS_TEMPLATE);
-    const newTasks = template.map(convertRoutineItemToTask);
-    const nonRoutineTasks = state.tasks.filter((t) => t.source !== 'routine');
-    dispatch({ type: 'loadRoutineTemplate', template, tasks: [...nonRoutineTasks, ...newTasks] });
-  }
+
 
   function upsertProfileField(key: string, value: string, group?: string, source?: ProfileField['source']) {
     dispatch({
@@ -736,6 +907,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  function requestChatDraft(text: string | null) {
+    dispatch({ type: 'setPendingChatDraft', text });
+  }
+
   const api: AppStateApi = {
     hydrated: state.hydrated,
     conversation_id: state.conversation_id,
@@ -745,18 +920,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     profile: state.profile,
     logs: state.logs,
     highlightedIds: state.highlightedIds,
+    isTyping: state.isTyping,
     nowTask,
     nextTask,
     pastTask,
     timeline,
     sendChat,
     completeTask,
+    uncompleteTask,
     rescheduleTask,
     addRoutineItem,
     updateRoutineItem,
     deleteRoutineItem,
     loadRoutineTemplate,
-    loadWellnessTemplate,
+
     upsertProfileField,
     deleteProfileField,
     deleteProfileGroup: (group) => dispatch({ type: 'deleteProfileGroup', group }),
@@ -775,7 +952,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           id: it.id || makeId('routine'),
           auto_complete: !!it.auto_complete
         }));
-        dispatch({ type: 'setRoutine', items: sane });
+
+        // Regenerate tasks for the current day based on the new routine
+        const newTasks = sane.map(convertRoutineItemToTask);
+        const nonRoutineTasks = state.tasks.filter((t) => t.source !== 'routine');
+
+        // Use loadRoutineTemplate action which updates both routine and tasks
+        dispatch({ type: 'loadRoutineTemplate', template: sane, tasks: [...nonRoutineTasks, ...newTasks] });
         alert('Routine imported successfully.');
       } catch (e) {
         alert('Failed to import: ' + e);
@@ -798,6 +981,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setProfile: (profile) => dispatch({ type: 'setProfile', profile }),
     addLog,
     acknowledgeHighlight: (ids) => dispatch({ type: 'acknowledgeHighlight', ids }),
+    revertRoutineDescription: (id) => dispatch({ type: 'revertRoutineDescription', id }),
+    revertProfileValue: (key) => dispatch({ type: 'revertProfileValue', key }),
+    requestChatDraft,
+    pendingChatDraft: state.pendingChatDraft,
+    clearChat: () => dispatch({ type: 'clearChat' }),
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

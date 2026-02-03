@@ -16,10 +16,6 @@ from pydantic import BaseModel, Field
 from minimax_mcp.client import MinimaxAPIClient
 
 
-# Structured output models
-
-
-
 class CreateRoutineItemAction(BaseModel):
     """Action to create a new routine item."""
     type: Literal["create_routine_item"] = "create_routine_item"
@@ -63,8 +59,9 @@ class AgentResponse(BaseModel):
     )
 
 
-SYSTEM_PROMPT = """You are SiSy, a smart personal routine assistant inspired by Atomic Habits.
-Current Time: {current_time}
+SYSTEM_PROMPT = """Current Time: {current_time}
+
+You are SiSy, you help your user to build a better routine through iterative refinement, improve their physical, mental, and emotional well-being.
 
 CONTEXT:
 User Profile:
@@ -93,9 +90,9 @@ INSTRUCTIONS on actions:
     - Optional: scheduled_time, description.
 - update_routine_item: Update an existing routine item.
     - MUST provide id.
-    - Update only the fields that changed (title, scheduled_time, etc.).
+    - Update only the fields that changed (title, scheduled_time, etc.).  
+    - Confirm with user before updating.
 
-IMPORTANT: You MUST respond with valid JSON only. No markdown, no explanation outside the JSON.
 Your response must follow this exact format:
 {{
   "assistant_message": "Your natural language response to the user",
@@ -117,15 +114,24 @@ class SiSyAgent:
         
         # Initialize OpikTracer for LangChain integration
         self.opik_tracer = OpikTracer(project_name="SiSy")
-        
-        # Initialize LLM with MiniMax's OpenAI-compatible endpoint
-        # Note: We don't use with_structured_output() because MiniMax returns
-        # <think> tags that need to be stripped before JSON parsing
+
+        schema = AgentResponse.model_json_schema()
+
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "agent_response",
+                "schema": schema,
+                "strict": True
+            }
+        }
+
         self.llm = ChatOpenAI(
             model="MiniMax-M2.1",
             openai_api_key=minimax_api_key,
             openai_api_base="https://api.minimax.io/v1",
             temperature=0.7,
+            model_kwargs={"response_format": response_format}
         )
         
         # Initialize MiniMax VLM Client
@@ -138,26 +144,26 @@ class SiSyAgent:
         return cleaned.strip()
     
     def _extract_json(self, content: str) -> dict:
-        """Extract JSON from the response content, handling various formats."""
-        # First strip any thinking tags
-        content = self._strip_thinking_tags(content)
-        
-        # Try to find JSON in markdown code blocks
-        json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
-        if json_match:
-            content = json_match.group(1)
-        
-        # Try to find raw JSON object
-        json_match = re.search(r'\{[^{}]*"assistant_message"[^{}]*\}', content, re.DOTALL)
-        if json_match:
-            content = json_match.group(0)
-        
+        """Extract JSON from the response content and validate against AgentResponse."""
         try:
-            return json.loads(content)
-        except json.JSONDecodeError:
-            # Fallback: return the raw content as assistant_message
+            # First strip any thinking tags
+            content = self._strip_thinking_tags(content)
+            
+            # Find JSON in markdown code blocks if present
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+            if json_match:
+                content = json_match.group(1)
+
+            # Model output should be valid JSON
+            return AgentResponse.model_validate_json(content).model_dump()
+            
+        except Exception as e:
+            print(f"[Agent] JSON Extraction Error: {e}")
+            print(f"[Agent] Raw Content: {content[:200]}...") # Log start of content for debug
+            
+            # Fallback for extreme cases
             return {
-                "assistant_message": content,
+                "assistant_message": "Sorry, I encountered an error processing the response.",
                 "actions": []
             }
 
@@ -213,8 +219,6 @@ class SiSyAgent:
                 print(f"[Agent] VLM Error: {e}")
                 text = f"{text}\n\n[System Note: The user attached an image, but analysis failed.]"
                 content = text
-
-
 
         # Build messages
         messages = [SystemMessage(content=system_prompt)]

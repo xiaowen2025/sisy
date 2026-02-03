@@ -1,0 +1,31 @@
+[
+    {
+        "id": "1",
+        "profile": {
+            "bio": "A generic user looking for a routine."
+        },
+        "routine": [
+            {
+                "id": "r1",
+                "title": "Morning Warmup",
+                "status": "pending",
+                "scheduled_time": "08:00"
+            }
+        ],
+        "message": "I don’t know what to do during warm up",
+        "expected_response_guidance": "give suggestions on a more concrete and actionable routine description",
+        "category": "update_routine"
+    },
+    {
+        "id": "2",
+        "profile": {
+            "health_conditions": [
+                "Iron deficiency"
+            ]
+        },
+        "routine": [],
+        "message": "food ideas?",
+        "expected_response_guidance": "encourage based on profile and update profile",
+        "category": "update_profile"
+    }
+]

@@ -22,7 +22,7 @@ type ListItem = HeaderItem | FieldItem | FooterItem | PlaceholderItem;
 export default function MeScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
-  const { profile, setProfile, upsertProfileField, deleteProfileField, deleteProfileGroup, highlightedIds, acknowledgeHighlight } = useAppState();
+  const { profile, setProfile, upsertProfileField, deleteProfileField, deleteProfileGroup, highlightedIds, acknowledgeHighlight, revertProfileValue } = useAppState();
 
   const borderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
   const placeholderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
@@ -242,6 +242,11 @@ export default function MeScreen() {
 
           {isSelected && !isActive && (
             <View style={styles.rowActions}>
+              {f.previousValue && (
+                <Pressable onPress={() => revertProfileValue(f.key)} style={styles.iconButton}>
+                  <FontAwesome name="undo" size={14} color="#ff9500" />
+                </Pressable>
+              )}
               {isDeleting ? (
                 <Pressable onPress={() => { deleteProfileField(f.key); setAttributeToDelete(null); }} style={styles.iconButton}>
                   <FontAwesome name="check" size={16} color={errorColor} />
@@ -313,6 +318,7 @@ export default function MeScreen() {
         data={data}
         onDragEnd={onDragEnd}
         keyExtractor={keyExtractor}
+        containerStyle={{ flex: 1 }}
         // @ts-ignore
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}

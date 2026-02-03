@@ -17,7 +17,7 @@ import Reanimated, {
   runOnJS,
   useDerivedValue
 } from 'react-native-reanimated';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { GestureDetector, Gesture, TouchableOpacity } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -171,9 +171,9 @@ const TaskCard = ({
             }
           }}
         >
-          <Pressable onPress={onPress}>
+          <TouchableOpacity onPress={onPress} activeOpacity={1}>
             {innerCard}
-          </Pressable>
+          </TouchableOpacity>
         </ReanimatedSwipeable>
       </Reanimated.View>
     );
@@ -288,6 +288,7 @@ export default function PresentScreen() {
 
   const handleReschedule = (task: Task) => {
     setSelectedTask(task);
+    setDetailVisible(false);
     setRescheduleVisible(true);
   };
 

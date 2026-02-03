@@ -61,7 +61,7 @@ class AgentResponse(BaseModel):
 
 SYSTEM_PROMPT = """Current Time: {current_time}
 
-You are SiSy, you help your user to build a better routine through iterative refinement.
+You are SiSy, you help your user to build a better routine through iterative refinement, improve their physical, mental, and emotional well-being.
 
 CONTEXT:
 User Profile:
@@ -93,7 +93,6 @@ INSTRUCTIONS on actions:
     - Update only the fields that changed (title, scheduled_time, etc.).  
     - Confirm with user before updating.
 
-IMPORTANT: You MUST respond with valid JSON only. No markdown, no explanation outside the JSON.
 Your response must follow this exact format:
 {{
   "assistant_message": "Your natural language response to the user",

@@ -38,9 +38,8 @@ function TypingIndicator({ color }: { color: string }) {
 
 function SuggestionChips({ onSelect, theme }: { onSelect: (text: string) => void; theme: any }) {
   const chips = [
-    'Review my day',
-    'Add a task',
-    'Start a routine',
+    'Refine my Routine',
+    'Discuss Progress',
   ];
 
   return (
@@ -51,7 +50,7 @@ function SuggestionChips({ onSelect, theme }: { onSelect: (text: string) => void
           onPress={() => onSelect(chip)}
           style={({ pressed }) => [
             styles.chip,
-            { backgroundColor: theme.tint, opacity: pressed ? 0.8 : 0.15 },
+            { backgroundColor: theme.tint + (pressed ? '33' : '1A') },
           ]}>
           <Text style={[styles.chipText, { color: theme.tint }]}>{chip}</Text>
         </Pressable>
@@ -81,7 +80,7 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
   const insets = useSafeAreaInsets();
   const bottom = bottomOffset + (Platform.OS === 'android' ? insets.bottom : 0);
 
-  const { chat, sendChat, isTyping, pendingChatDraft, requestChatDraft } = useAppState();
+  const { chat, sendChat, isTyping, pendingChatDraft, requestChatDraft, clearChat } = useAppState();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [image, setImage] = useState<string | null>(null);
@@ -136,6 +135,31 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
       // Ensure drawer is open or stays open
       setOpen(true);
     }
+  }
+
+  function handleClear() {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to clear the conversation?')) {
+        clearChat();
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Clear Chat',
+      'Are you sure you want to clear the conversation?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: () => {
+            clearChat();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        }
+      ]
+    );
   }
 
   function handleClose() {
@@ -241,14 +265,24 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
                 ]}>
                 <View style={[styles.drawerHeader, { borderBottomColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
                   <Text style={[styles.drawerTitle, { color: theme.text }]}>Chat</Text>
-                  <Pressable
-                    onPress={handleClose}
-                    style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
-                    hitSlop={12}>
-                    <View style={[styles.closeIconContainer, { backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
-                      <Ionicons name="close" size={20} color={theme.text} />
-                    </View>
-                  </Pressable>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Pressable
+                      onPress={handleClear}
+                      style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
+                      hitSlop={12}>
+                      <View style={[styles.closeIconContainer, { backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                        <Ionicons name="refresh-outline" size={20} color={theme.text} />
+                      </View>
+                    </Pressable>
+                    <Pressable
+                      onPress={handleClose}
+                      style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
+                      hitSlop={12}>
+                      <View style={[styles.closeIconContainer, { backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                        <Ionicons name="close" size={20} color={theme.text} />
+                      </View>
+                    </Pressable>
+                  </View>
                 </View>
 
                 <View style={styles.drawerBody}>
@@ -409,8 +443,8 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
               </View>
             </View>
           </KeyboardAvoidingView>
-        </View >
-      </Modal >
+        </View>
+      </Modal>
     </>
   );
 }

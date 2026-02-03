@@ -10,8 +10,6 @@ A routine item can be set to auto complete, which means it will be completed aut
 
 On the me page, semi-structured user profile is maintained. The profile and the routine page contains all the data that Sisy knows about the user.
 
-
-
 Let me walk you through the apps and explain the design philosophy.
 
 ## Goal

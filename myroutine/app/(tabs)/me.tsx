@@ -318,6 +318,7 @@ export default function MeScreen() {
         data={data}
         onDragEnd={onDragEnd}
         keyExtractor={keyExtractor}
+        containerStyle={{ flex: 1 }}
         // @ts-ignore
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}

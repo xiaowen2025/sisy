@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useMemo, useReducer } from
 import { sendChatMessage } from '@/lib/api';
 import { getJson, setJson } from '@/lib/storage';
 import { applyTimeToDate, makeId, nowIso } from '@/lib/dateUtils';
-import { getFreshRoutine, ROUTINE_TEMPLATE, WELLNESS_TEMPLATE } from '@/lib/templates';
+import { getFreshRoutine, ROUTINE_TEMPLATE } from '@/lib/templates';
 import type {
   ChatAction,
   ChatMessage,
@@ -51,7 +51,10 @@ type Action =
   | { type: 'setTyping'; isTyping: boolean }
   | { type: 'revertRoutineDescription'; id: string }
   | { type: 'revertProfileValue'; key: string }
-  | { type: 'setPendingChatDraft'; text: string | null };
+  | { type: 'revertRoutineDescription'; id: string }
+  | { type: 'revertProfileValue'; key: string }
+  | { type: 'setPendingChatDraft'; text: string | null }
+  | { type: 'clearChat' };
 
 function sortTodoTasks(tasks: Task[]): Task[] {
   const todo = tasks.filter((t) => t.status === 'todo');
@@ -415,6 +418,8 @@ function reducer(state: State, action: Action): State {
     }
     case 'setPendingChatDraft':
       return { ...state, pendingChatDraft: action.text };
+    case 'clearChat':
+      return { ...state, chat: [], conversation_id: null };
     default:
       return state;
   }
@@ -455,7 +460,7 @@ type AppStateApi = {
   updateRoutineItem: (id: string, patch: Partial<Omit<RoutineItem, 'id'>>) => void;
   deleteRoutineItem: (id: string) => void;
   loadRoutineTemplate: () => void;
-  loadWellnessTemplate: () => void;
+
   upsertProfileField: (key: string, value: string, group?: string, source?: ProfileField['source']) => void;
   deleteProfileField: (key: string) => void;
   deleteProfileGroup: (group: string) => void;
@@ -470,6 +475,7 @@ type AppStateApi = {
   revertProfileValue: (key: string) => void;
   requestChatDraft: (text: string | null) => void;
   pendingChatDraft: string | null;
+  clearChat: () => void;
 };
 
 const Ctx = createContext<AppStateApi | null>(null);
@@ -873,12 +879,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'loadRoutineTemplate', template, tasks: [...nonRoutineTasks, ...newTasks] });
   }
 
-  function loadWellnessTemplate() {
-    const template = getFreshRoutine(WELLNESS_TEMPLATE);
-    const newTasks = template.map(convertRoutineItemToTask);
-    const nonRoutineTasks = state.tasks.filter((t) => t.source !== 'routine');
-    dispatch({ type: 'loadRoutineTemplate', template, tasks: [...nonRoutineTasks, ...newTasks] });
-  }
+
 
   function upsertProfileField(key: string, value: string, group?: string, source?: ProfileField['source']) {
     dispatch({
@@ -932,7 +933,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     updateRoutineItem,
     deleteRoutineItem,
     loadRoutineTemplate,
-    loadWellnessTemplate,
+
     upsertProfileField,
     deleteProfileField,
     deleteProfileGroup: (group) => dispatch({ type: 'deleteProfileGroup', group }),
@@ -984,6 +985,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     revertProfileValue: (key) => dispatch({ type: 'revertProfileValue', key }),
     requestChatDraft,
     pendingChatDraft: state.pendingChatDraft,
+    clearChat: () => dispatch({ type: 'clearChat' }),
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

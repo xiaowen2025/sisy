@@ -478,6 +478,8 @@ type AppStateApi = {
   clearChat: () => void;
 };
 
+import { computeTimeline } from './timeline';
+
 const Ctx = createContext<AppStateApi | null>(null);
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
@@ -622,113 +624,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.hydrated, tick]);
 
-  const todoSorted = useMemo(() => sortTodoTasks(state.tasks), [state.tasks]);
-
-  // Smart Visibility Logic
   const { nowTask, nextTask, pastTask, timeline } = useMemo(() => {
-    // 0. Filter to show ONLY Today's tasks (Past days hidden from view, future hidden)
-    const now = new Date();
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    return computeTimeline(state.tasks); // Using extracted logic
 
-    const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999);
-
-    const todayTasks = todoSorted.filter((t) => {
-      if (!t.scheduled_time) return true; // Keep unscheduled? Maybe, or hide. Let's keep for now.
-      const tTime = new Date(t.scheduled_time).getTime();
-      return tTime >= startOfToday.getTime() && tTime <= endOfToday.getTime();
-    });
-
-    // 1. Filter out passed auto-complete items
-    const visible = filterVisibleTasks(todayTasks);
-
-    // 2. Smart Queue Sort
-    const visibilityNow = Date.now();
-    const overdue: Task[] = [];
-    const upcoming: Task[] = [];
-
-    visible.forEach(t => {
-      if (!t.scheduled_time) {
-        upcoming.push(t);
-      } else {
-        const taskTime = Date.parse(t.scheduled_time);
-        if (taskTime < visibilityNow) {
-          overdue.push(t);
-        } else {
-          upcoming.push(t);
-        }
-      }
-    });
-
-    // Overdue: Sort DESC (Newest first) for Priority
-    overdue.sort((a, b) => {
-      const at = a.scheduled_time ? Date.parse(a.scheduled_time) : 0;
-      const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : 0;
-      return bt - at;
-    });
-
-    // Primary Logic
-    let nowTaskVal: Task | null = null;
-    let pastTaskVal: Task | null = null;
-    let nextTaskVal: Task | null = null;
-
-    if (overdue.length > 0) {
-      nowTaskVal = overdue[0];
-      const potentialPast = overdue.slice(1).find(t => !t.auto_complete);
-      pastTaskVal = potentialPast || null;
-      nextTaskVal = upcoming.length > 0 ? upcoming[0] : null;
-    } else {
-      nowTaskVal = upcoming.length > 0 ? upcoming[0] : null;
-      pastTaskVal = null;
-      nextTaskVal = upcoming.length > 1 ? upcoming[1] : null;
-    }
-
-    // --- Timeline Construction ---
-    // 1. History (Completed tasks from today/recent)
-    // Sorted Oldest -> Newest (so last item is closest to 'Now')
-    const history = state.tasks
-      .filter(t => t.status === 'done')
-      .sort((a, b) => {
-        const at = a.scheduled_time ? Date.parse(a.scheduled_time) : 0;
-        const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : 0;
-        return at - bt;
-      });
-    // .slice(-5) if needed
-
-    // 2. Overdue (for Timeline): Needs to be Sorted Oldest -> Newest
-    // We re-sort overdue for visual linear flow.
-    const overdueAsc = [...overdue].sort((a, b) => {
-      const at = a.scheduled_time ? Date.parse(a.scheduled_time) : 0;
-      const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : 0;
-      return at - bt;
-    });
-
-    // 3. Upcoming (Already sorted Earliest -> Latest by todoSorted)
-
-    // Merge into single linear list: [ ...History, ...OverdueAsc, ...Upcoming ]
-    // We need to deduplicate logic slightly: NowTask is already in Overdue or Upcoming.
-    // Ideally, "Now" is just the pointer. The timeline is the full list.
-
-    const rawTimeline = [...history, ...overdueAsc, ...upcoming];
-
-    // Ensure uniqueness based on ID (just in case)
-    const seen = new Set();
-    const timelineVal = [];
-    for (const t of rawTimeline) {
-      if (!seen.has(t.id)) {
-        seen.add(t.id);
-        timelineVal.push(t);
-      }
-    }
-
-    return {
-      nowTask: nowTaskVal,
-      nextTask: nextTaskVal,
-      pastTask: pastTaskVal,
-      timeline: timelineVal
-    };
-  }, [todoSorted, tick, state.tasks]);
+  }, [tick, state.tasks]);
 
 
   async function sendChat(tab: TabId, text: string, imageUri?: string) {

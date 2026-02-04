@@ -316,12 +316,14 @@ export default function PresentScreen() {
     setDetailVisible(true);
   };
 
+  const allCaughtUp = timeline.length > 0 && timeline.filter(task => task.status === 'todo').length === 0;
+
   return (
     <GestureDetector gesture={panGesture}>
       <View style={styles.container}>
         <View style={styles.stackWrapper}>
 
-          {timeline.map((task, index) => {
+          {!allCaughtUp && timeline.map((task, index) => {
 
 
             return (
@@ -339,7 +341,7 @@ export default function PresentScreen() {
 
         </View>
 
-        {timeline.length > 0 && timeline.filter(task => task.status === 'todo').length === 0 && (
+        {allCaughtUp && (
           <View style={styles.card}>
             <Text style={styles.title}>All caught up. Enjoy your moment.</Text>
           </View>

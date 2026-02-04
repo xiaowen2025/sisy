@@ -153,15 +153,33 @@ class SiSyAgent:
             json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
             if json_match:
                 content = json_match.group(1)
+            
+            # Check if content looks like JSON (starts with { after stripping whitespace)
+            stripped_content = content.strip()
+            if not stripped_content.startswith('{'):
+                # Model outputted markdown/text instead of JSON - use it directly as assistant_message
+                print(f"[Agent] Model returned non-JSON response, using as assistant_message")
+                return {
+                    "assistant_message": stripped_content,
+                    "actions": []
+                }
 
             # Model output should be valid JSON
-            return AgentResponse.model_validate_json(content).model_dump()
+            return AgentResponse.model_validate_json(stripped_content).model_dump()
             
         except Exception as e:
             print(f"[Agent] JSON Extraction Error: {e}")
             print(f"[Agent] Raw Content: {content[:200]}...") # Log start of content for debug
             
-            # Fallback for extreme cases
+            # Fallback: try to use the content as assistant_message if it's not empty
+            stripped = self._strip_thinking_tags(content).strip()
+            if stripped and not stripped.startswith('{'):
+                return {
+                    "assistant_message": stripped,
+                    "actions": []
+                }
+            
+            # Final fallback for extreme cases
             return {
                 "assistant_message": "Sorry, I encountered an error processing the response.",
                 "actions": []

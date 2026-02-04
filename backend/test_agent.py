@@ -11,7 +11,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 
-test_message = "My age is 35, female, I work as a software engineer"
+test_message = "Create a daily morning yoga routine at 7am"
 
 
 # Configure logging

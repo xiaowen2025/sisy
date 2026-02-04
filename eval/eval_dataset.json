@@ -12,7 +12,7 @@
                 "scheduled_time": "08:00"
             }
         ],
-        "message": "I don’t know what to do during warm up",
+        "message": "I don't know what to do during warm up",
         "expected_response_guidance": "give suggestions on a more concrete and actionable routine description",
         "category": "update_routine"
     },

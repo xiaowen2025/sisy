@@ -15,15 +15,17 @@ logger = logging.getLogger(__name__)
 
 try:
     import utils
+    from metrics import LLMJudgeMetric
 except ImportError:
     # Handle case where we might be running from parent dir
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     import utils
+    from metrics import LLMJudgeMetric
 
 def main():
     load_dotenv()
     
-    logger.info("Starting Experiment Run (No LLM Judge)...")
+    logger.info("Starting Experiment Run WITH LLM Judge...")
     
     # Setup Opik
     client = Opik(project_name=utils.PROJECT_NAME)
@@ -36,28 +38,28 @@ def main():
     experiment_config = {
         "model": "MiniMax-M2.1",
         "agent": "SiSyAgent",
-        "type": "run_only"
+        "type": "full_eval"
     }
     
     # Experiment Name
     custom_name = os.getenv("EXPERIMENT_NAME")
-    experiment_name = custom_name if custom_name else f"SiSy Run {os.urandom(4).hex()}"
+    experiment_name = custom_name if custom_name else f"SiSy Eval {os.urandom(4).hex()}"
     
-    logger.info(f"Running experiment: {experiment_name}")
+    logger.info(f"Running evaluation experiment: {experiment_name}")
     logger.info(f"Dataset: {utils.DATASET_NAME}")
 
-    # Run Evaluation (No Metrics)
+    # Run Evaluation (With Metrics)
     results = evaluate(
         dataset=dataset,
         task=utils.evaluation_task,
-        scoring_metrics=[], # No metrics
+        scoring_metrics=[LLMJudgeMetric()],
         project_name=utils.PROJECT_NAME,
         experiment_config=experiment_config,
         experiment_name=experiment_name
     )
     
-    logger.info(f"Experiment '{experiment_name}' completed.")
-    logger.info(f"Check the Opik dashboard for traces.")
+    logger.info(f"Evaluation '{experiment_name}' completed.")
+    logger.info(f"Results: {results}")
 
 if __name__ == "__main__":
     main()

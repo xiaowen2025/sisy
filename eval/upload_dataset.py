@@ -1,5 +1,6 @@
 """
-Upload evaluation dataset to Opik.
+Upload evaluation dataset to Opik from local JSON file.
+
 
 This script creates a dataset on Opik for evaluating the SiSy daily planning assistant.
 The dataset contains test cases with user inputs and expected outputs/actions.
@@ -20,6 +21,7 @@ backend_dir = Path(__file__).parent.parent / "backend"
 sys.path.insert(0, str(backend_dir))
 
 from dotenv import load_dotenv
+import json
 import opik
 from opik import Opik
 
@@ -28,49 +30,44 @@ load_dotenv(backend_dir / ".env")
 
 
 # Dataset name
-DATASET_NAME = "SiSy Agent Evaluation"
+DATASET_NAME = "Sisy Eval"
 DATASET_DESCRIPTION = """
 Evaluation dataset for the SiSy daily planning assistant.
-Contains test cases for:
-- Task creation and management
-- Profile attribute updates
-- Routine loading and editing
-- General conversation and help requests
+Loaded from eval/eval_dataset.json.
 """
 
-# Test cases for the SiSy agent
-# Each item has: input (user message), tab context, and expected_output (what the agent should do)
-DATASET_ITEMS = [
-    {
-        "input": "My age is 35, female, I work as a software engineer",
-        "tab": "me",
-        "expected_action_type": "set_attribute",
-        "expected_output": {
-            "should_update_profile": True,
-            "attribute_key": "age",
-            "attribute_value": "35",
-        },
-    },
-    {
-        "input": "I prefer waking up early, around 6am",
-        "tab": "me",
-        "expected_action_type": "set_attribute",
-        "expected_output": {
-            "should_update_profile": True,
-            "attribute_key_contains": "wake",
-        },
-    },
-    # Conversational / help tests
-    {
-        "input": "What can you help me with?",
-        "tab": "present",
-        "expected_action_type": "none",
-        "expected_output": {
-            "should_explain_capabilities": True,
-            "response_should_mention": ["task", "routine", "schedule"],
-        },
-    }
-]
+def load_dataset_items():
+    """Load and transform dataset items from JSON file."""
+    dataset_path = Path(__file__).parent / "eval_dataset.json"
+    
+    if not dataset_path.exists():
+        raise FileNotFoundError(f"Dataset file not found at {dataset_path}")
+        
+    with open(dataset_path, "r") as f:
+        raw_items = json.load(f)
+        
+    opik_items = []
+    for item in raw_items:
+        opik_items.append({
+            "input": {
+                "text": item.get("message", ""),
+                "user_context": {
+                    "profile": item.get("profile", {}),
+                    "routine": item.get("routine", [])
+                }
+            },
+            "expected_output": {
+                "guidance": item.get("expected_response_guidance"),
+                "category": item.get("category")
+            },
+            "metadata": {
+                "id": item.get("id")
+            }
+        })
+    
+    return opik_items
+
+DATASET_ITEMS = load_dataset_items()
 
 
 def main():

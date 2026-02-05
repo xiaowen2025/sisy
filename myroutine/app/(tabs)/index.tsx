@@ -36,6 +36,7 @@ import { Task } from '@/lib/types';
 function formatTimeLabel(iso: string | null): string {
   if (!iso) return 'Now';
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return 'Invalid Time';
   // Keep it simple & local.
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
@@ -189,7 +190,7 @@ const TaskCard = ({
 import { RoutineItemModal } from '@/components/RoutineItemModal';
 
 export default function PresentScreen() {
-  const { nowTask, timeline, completeTask, uncompleteTask, addLog, skipTask } = useAppState();
+  const { nowTask, timeline, completeTask, uncompleteTask, addLog, skipTask, routine } = useAppState();
   const [rescheduleVisible, setRescheduleVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [completionVisible, setCompletionVisible] = useState(false);
@@ -199,6 +200,22 @@ export default function PresentScreen() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const ITEM_HEIGHT = 90;
+
+  // Empty State for no routine at all
+  if (routine.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.card, { alignItems: 'center', paddingHorizontal: 40 }]}>
+          <Text style={[styles.title, { textAlign: 'center', fontSize: 28 }]}>
+            Let's craft your perfect routine.
+          </Text>
+          <Text style={{ marginTop: 16, fontSize: 16, textAlign: 'center', opacity: 0.6 }}>
+            Head to the chat to get started.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   // Find index of 'Now' task in timeline logic
   // We compute it fresh each render to know where 'now' is
@@ -316,12 +333,14 @@ export default function PresentScreen() {
     setDetailVisible(true);
   };
 
+  const allCaughtUp = timeline.length > 0 && timeline.filter(task => task.status === 'todo').length === 0;
+
   return (
     <GestureDetector gesture={panGesture}>
       <View style={styles.container}>
         <View style={styles.stackWrapper}>
 
-          {timeline.map((task, index) => {
+          {!allCaughtUp && timeline.map((task, index) => {
 
 
             return (
@@ -339,7 +358,7 @@ export default function PresentScreen() {
 
         </View>
 
-        {timeline.length > 0 && timeline.filter(task => task.status === 'todo').length === 0 && (
+        {allCaughtUp && (
           <View style={styles.card}>
             <Text style={styles.title}>All caught up. Enjoy your moment.</Text>
           </View>

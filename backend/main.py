@@ -11,6 +11,8 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depe
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from agent import SiSyAgent
 
 # Load environment variables
@@ -57,24 +59,20 @@ app.add_middleware(
 
 # Request/Response models matching frontend types
 class ChatAction(BaseModel):
-    type: str
-    # Common fields
-    title: str | None = None
-    scheduled_time: str | None = None
-    description: str | None = None
+    """Flexible action model that accepts any action type."""
+    model_config = {"extra": "allow"}  # Allow extra fields
     
-    # Routine item fields
+    type: str
+    # Optional common fields - will be included only if present
+    title: str | None = None
+    time: str | None = None  # HH:MM format
+    description: str | None = None
     id: str | None = None
-    status: str | None = None
     
     # Profile fields
     key: str | None = None
     value: str | None = None
     group: str | None = None
-    
-    # Log fields
-    message: str | None = None
-    level: str | None = None
 
 
 class ChatSendRequest(BaseModel):
@@ -82,12 +80,13 @@ class ChatSendRequest(BaseModel):
     tab: str
     text: str
     imageUri: str | None = None
-    imageUri: str | None = None
     user_context: str | None = None # JSON stringified context
     message_history: str | None = None # JSON stringified history
 
 
 class ChatSendResponse(BaseModel):
+    model_config = {"exclude_none": True}  # Exclude null values from response
+    
     conversation_id: str
     assistant_text: str
     actions: list[ChatAction]
@@ -111,7 +110,7 @@ async def health_check():
     return {"status": "ok", "agent_ready": agent is not None}
 
 
-@app.post("/chat", response_model=ChatSendResponse)
+@app.post("/chat", response_model=ChatSendResponse, response_model_exclude_none=True)
 async def chat(
     text: str = Form(...),
     tab: str = Form("home"),
@@ -177,6 +176,30 @@ async def chat(
     except Exception as e:
         print(f"[Chat Error] {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Mount static files (frontend)
+# We mount at root but need to be careful not to shadow API routes
+# The order matters: API routes are defined first, so they take precedence.
+app.mount("/assets", StaticFiles(directory="static/assets"), name="assets")
+
+# Serve specific static files if needed (e.g. manifest, icons)
+# For a clean SPA, we usually serve index.html for everything else.
+
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    """Serve the Single Page Application (SPA)."""
+    # Check if a specific file exists in static (e.g. favicon.png)
+    possible_file = os.path.join("static", full_path)
+    if os.path.isfile(possible_file):
+         return FileResponse(possible_file)
+    
+    # Otherwise return index.html for client-side routing
+    index_path = os.path.join("static", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+        
+    return {"error": "Frontend not found (static/index.html missing)"}
 
 
 if __name__ == "__main__":

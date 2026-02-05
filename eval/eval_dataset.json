@@ -12,8 +12,8 @@
                 "scheduled_time": "08:00"
             }
         ],
-        "message": "I don’t know what to do during warm up",
-        "expected_response_guidance": "give suggestions on a more concrete and actionable routine description",
+        "message": "I don't know what to do during warm up",
+        "expected_response_guidance": "Guide user to create a more concrete and actionable routine description",
         "category": "update_routine"
     },
     {
@@ -27,5 +27,21 @@
         "message": "food ideas?",
         "expected_response_guidance": "encourage based on profile and update profile",
         "category": "update_profile"
+    },
+    {
+        "id": "3",
+        "profile": {},
+        "routine": [],
+        "message": "hey im sarah, 35, software engineer. i love reading & hiking. been feeling kinda overwhelmed lately with work ugh, want to start a better morning routine to get my day going with more energy. also fyi i have a nut allergy",
+        "expected_response_guidance": "the agent should update the profile correctly",
+        "category": "update_profile"
+    },
+    {
+        "id": "4",
+        "profile": {},
+        "routine": [],
+        "message": "I wake up at 7am, brush teeth and wash face. Then I drink a glass of water. Around 7:30 I go for a 30 min jog. Shower at 8:15. Breakfast at 8:45, usually oatmeal. Start work at 9:30.",
+        "expected_response_guidance": "extract routine items from the message and add them",
+        "category": "update_routine"
     }
 ]

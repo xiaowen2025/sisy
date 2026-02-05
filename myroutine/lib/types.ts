@@ -59,16 +59,6 @@ export type Log = {
 
 export type ChatAction =
   | {
-    type: 'create_task';
-    title: string;
-    scheduled_time: Iso8601 | null;
-  }
-  | {
-    type: 'suggest_reschedule';
-    task_id: string;
-    scheduled_time: Iso8601 | null;
-  }
-  | {
     type: 'upsert_profile_field';
     key: string;
     value: string;
@@ -76,26 +66,11 @@ export type ChatAction =
     source?: ProfileFieldSource;
   }
   | {
-    type: 'create_routine_item';
+    type: 'upsert_routine_item';
+    id?: string;
     title: string;
-    scheduled_time?: string | null;
-    status?: string | null;
+    time?: string | null;
     description?: string | null;
-  }
-  | {
-    type: 'update_routine_item';
-    id: string;
-    title?: string;
-    scheduled_time?: string | null;
-    status?: string | null;
-    description?: string | null;
-  }
-  | {
-    type: 'upsert_profile_field';
-    key: string;
-    value: string;
-    group?: string;
-    source?: ProfileFieldSource;
   };
 
 export type ChatSendRequest = {

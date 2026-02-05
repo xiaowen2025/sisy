@@ -1,6 +1,27 @@
 import { Task } from './types';
 import { useMemo } from 'react';
 
+// Helper function copies from appState.tsx
+export function sortTodoTasks(tasks: Task[]): Task[] {
+    return tasks
+        .filter((t) => t.status === 'todo')
+        .sort((a, b) => {
+            if (!a.scheduled_time && !b.scheduled_time) return 0;
+            if (!a.scheduled_time) return 1;
+            if (!b.scheduled_time) return -1;
+            return Date.parse(a.scheduled_time) - Date.parse(b.scheduled_time);
+        });
+}
+
+export function filterVisibleTasks(tasks: Task[], now: Date = new Date()): Task[] {
+    const timeNow = now.getTime();
+    return tasks.filter(t => {
+        if (!t.auto_complete) return true;
+        if (!t.scheduled_time) return true;
+        return Date.parse(t.scheduled_time) > timeNow;
+    });
+}
+
 // Core logic: extracted for testability
 export function computeTimeline(tasks: Task[], dateOverride?: Date) {
     // 0. Filter to show ONLY Today's tasks (Past days hidden from view, future hidden)
@@ -11,30 +32,6 @@ export function computeTimeline(tasks: Task[], dateOverride?: Date) {
     const endOfToday = new Date(now);
     endOfToday.setHours(23, 59, 59, 999);
 
-    // Helper function copies from appState.tsx
-    const sortTodoTasks = (tasks: Task[]): Task[] => {
-        return tasks
-            .filter((t) => t.status === 'todo')
-            .sort((a, b) => {
-                if (!a.scheduled_time && !b.scheduled_time) return 0;
-                if (!a.scheduled_time) return 1;
-                if (!b.scheduled_time) return -1;
-                return Date.parse(a.scheduled_time) - Date.parse(b.scheduled_time);
-            });
-    };
-
-    const filterVisibleTasks = (tasks: Task[]) => {
-        // Stub for now, or copy logic if needed. 
-        // In appState, it filters out auto_complete items that passed.
-        // Logic: if task.auto_complete and time < now, filter out.
-
-        return tasks.filter(t => {
-            if (!t.auto_complete) return true;
-            if (!t.scheduled_time) return true;
-            return Date.parse(t.scheduled_time) > now.getTime();
-        });
-    };
-
     const todoSorted = sortTodoTasks(tasks);
 
     const todayTasks = todoSorted.filter((t) => {
@@ -44,7 +41,7 @@ export function computeTimeline(tasks: Task[], dateOverride?: Date) {
     });
 
     // 1. Filter out passed auto-complete items
-    const visible = filterVisibleTasks(todayTasks);
+    const visible = filterVisibleTasks(todayTasks, now);
 
     // 2. Smart Queue Sort
     const visibilityNow = now.getTime();

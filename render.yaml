@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: sisy
+    runtime: docker
+    envVars:
+      - key: MINIMAX_API_KEY
+        sync: false
+      - key: OPIK_API_KEY
+        sync: false

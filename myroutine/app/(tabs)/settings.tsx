@@ -12,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function SettingsScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
-    const { loadRoutineTemplate, routine, profile, importRoutine, importProfile, logs } = useAppState();
+    const { loadRoutineTemplate, routine, profile, importRoutine, importProfile, logs, clearAllData } = useAppState();
+
 
     const [importVisible, setImportVisible] = useState(false);
     const [importMode, setImportMode] = useState<'routine' | 'profile'>('routine');
@@ -58,6 +59,28 @@ export default function SettingsScreen() {
         setImportVisible(false);
         setImportText('');
     }
+
+    function handleClearData() {
+        if (Platform.OS === 'web') {
+            if (window.confirm('Are you sure? This will delete all your data permanently.\n\nThis action cannot be undone.')) {
+                clearAllData();
+            }
+        } else {
+            Alert.alert(
+                'Clear All Data',
+                'Are you sure? This will delete all your data permanently.\n\nThis action cannot be undone.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: clearAllData
+                    }
+                ]
+            );
+        }
+    }
+
 
     const borderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
 
@@ -146,6 +169,19 @@ export default function SettingsScreen() {
                         ))}
                     </View>
                 </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>Danger Zone</Text>
+                    <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+                        <SettingsRow
+                            icon="trash"
+                            label="Clear All Data"
+                            onPress={handleClearData}
+                            destructive
+                        />
+                    </View>
+                </View>
+
 
                 <View style={{ height: 100 }} />
 

@@ -82,6 +82,7 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
 
   const { chat, sendChat, isTyping, pendingChatDraft, requestChatDraft, clearChat } = useAppState();
   const [open, setOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const [text, setText] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const inputRef = useRef<TextInput | null>(null);
@@ -254,18 +255,37 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
             behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             style={{ flex: 1 }}>
-            <View style={[styles.modalOverlay, Platform.OS === 'web' && styles.webOverlay]}>
+            <View style={[
+              styles.modalOverlay,
+              Platform.OS === 'web' && styles.webOverlay,
+              Platform.OS === 'web' && isMaximized && styles.webOverlayMaximized,
+            ]}>
               <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
 
               <View
                 style={[
                   styles.drawer,
                   Platform.OS === 'web' && styles.webDrawer,
+                  Platform.OS === 'web' && isMaximized && styles.webDrawerMaximized,
                   { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 20) },
                 ]}>
                 <View style={[styles.drawerHeader, { borderBottomColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
                   <Text style={[styles.drawerTitle, { color: theme.text }]}>Chat</Text>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {Platform.OS === 'web' && (
+                      <Pressable
+                        onPress={() => setIsMaximized((m) => !m)}
+                        style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
+                        hitSlop={12}>
+                        <View style={[styles.closeIconContainer, { backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                          <Ionicons
+                            name={isMaximized ? "contract-outline" : "expand-outline"}
+                            size={20}
+                            color={theme.text}
+                          />
+                        </View>
+                      </Pressable>
+                    )}
                     <Pressable
                       onPress={handleClear}
                       style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
@@ -297,7 +317,7 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
                   ) : (
                     <FlatList
                       data={reversedChat}
-                      // @ts-expect-error inverted prop exists but TypeScript defs don't recognize it
+                      // @ts-expect-error inverted prop exists but TypeScript defs doesn't recognize it
                       inverted={true}
                       keyExtractor={(item) => item.id}
                       contentContainerStyle={styles.history}
@@ -591,6 +611,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
   },
+  webOverlayMaximized: {
+    padding: 0,
+  },
   webDrawer: {
     flex: 0,
     width: '100%',
@@ -600,6 +623,18 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     minHeight: 500,
     zIndex: 10,
+  },
+  webDrawerMaximized: {
+    maxWidth: '100%',
+    maxHeight: '100%',
+    height: '100%',
+    borderRadius: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    marginVertical: 0,
+    alignSelf: 'stretch',
+    minHeight: 0,
+    flex: 1,
   },
   typingContainer: {
     padding: 8,
@@ -617,7 +652,6 @@ const styles = StyleSheet.create({
   chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
     gap: 8,
   },
   chip: {

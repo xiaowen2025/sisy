@@ -14,7 +14,7 @@ from opik import Opik, Dataset
 logger = logging.getLogger(__name__)
 
 PROJECT_NAME = "SiSy"
-DATASET_NAME = "SiSy Eval Dataset 2"
+DATASET_NAME = "Sisy Eval"
 
 def get_script_dir():
     return os.path.dirname(os.path.abspath(__file__))

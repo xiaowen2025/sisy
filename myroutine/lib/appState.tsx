@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 
 import { sendChatMessage } from '@/lib/api';
-import { getJson, setJson } from '@/lib/storage';
+import { getJson, setJson, clear } from '@/lib/storage';
+
 import { applyTimeToDate, makeId, nowIso } from '@/lib/dateUtils';
 import { getFreshRoutine, ROUTINE_TEMPLATE } from '@/lib/templates';
 import type {
@@ -17,7 +18,7 @@ import type {
 
 const STATE_KEY = 'sisy.app_state.v0';
 
-type State = {
+export type State = {
   hydrated: boolean;
   conversation_id: string | null;
   chat: ChatMessage[];
@@ -56,30 +57,6 @@ type Action =
   | { type: 'setPendingChatDraft'; text: string | null }
   | { type: 'clearChat' };
 
-function sortTodoTasks(tasks: Task[]): Task[] {
-  const todo = tasks.filter((t) => t.status === 'todo');
-  return todo.sort((a, b) => {
-    const at = a.scheduled_time ? Date.parse(a.scheduled_time) : Number.POSITIVE_INFINITY;
-    const bt = b.scheduled_time ? Date.parse(b.scheduled_time) : Number.POSITIVE_INFINITY;
-    return at - bt;
-  });
-}
-
-/**
- * Filter out auto-complete tasks that have already passed.
- */
-function filterVisibleTasks(tasks: Task[]): Task[] {
-  const now = Date.now();
-  // Buffer: 5 minutes grace period? Or strict? Let's be strict for "passed".
-  return tasks.filter((t) => {
-    if (!t.auto_complete) return true;
-    if (!t.scheduled_time) return true; // No time, show it
-    const tTime = Date.parse(t.scheduled_time);
-    // If time has passed -> hide it (implicitly done)
-    return tTime > now;
-  });
-}
-
 function sortRoutineItems(items: RoutineItem[]): RoutineItem[] {
   return [...items].sort((a, b) => {
     const ta = a.time || '99:99';
@@ -89,7 +66,7 @@ function sortRoutineItems(items: RoutineItem[]): RoutineItem[] {
 }
 
 // Helper to safely access properties with "type" or "action" discrimination
-function applyChatActions(state: State, actions: ChatAction[]): State {
+export function applyChatActions(state: State, actions: ChatAction[]): State {
   let next = state;
   const newLogs: Log[] = [];
   const newHighlights: string[] = [];
@@ -98,39 +75,8 @@ function applyChatActions(state: State, actions: ChatAction[]): State {
     const action = rawAction as any;
     const type = action.type || action.action;
 
-    if (type === 'create_task') {
-      const task: Task = {
-        id: makeId('task'),
-        title: action.title,
-        scheduled_time: action.scheduled_time,
-        status: 'todo',
-        source: 'chat',
-      };
-      next = { ...next, tasks: [task, ...next.tasks] };
-      continue;
-    }
-    if (type === 'suggest_reschedule') {
-      next = {
-        ...next,
-        tasks: next.tasks.map((t) =>
-          t.id === action.task_id ? { ...t, scheduled_time: action.scheduled_time } : t
-        ),
-      };
 
-      // Log rescheduling
-      const task = next.tasks.find(t => t.id === action.task_id);
-      if (task) {
-        newLogs.push({
-          id: makeId('log'),
-          timestamp: nowIso(),
-          related_action: 'task_reschedule',
-          content: `Sisy rescheduled task "${task.title}"`,
-          author: 'assistant',
-          routine_item_id: task.routine_item_id
-        });
-      }
-      continue;
-    }
+
     if (type === 'upsert_profile_field') {
       const field: ProfileField = {
         key: action.key,
@@ -156,7 +102,7 @@ function applyChatActions(state: State, actions: ChatAction[]): State {
       newHighlights.push(action.key);
     }
 
-    if (type === 'create_routine_item' || type === 'update_routine_item') {
+    if (type === 'upsert_routine_item') {
       const existingIdx = action.id ? next.routine.findIndex((r) => r.id === action.id) : -1;
       let newItem: RoutineItem;
 
@@ -166,7 +112,7 @@ function applyChatActions(state: State, actions: ChatAction[]): State {
         newItem = {
           ...old,
           title: action.title ?? old.title,
-          time: action.scheduled_time ? (new Date(action.scheduled_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })) : old.time,
+          time: action.time ?? old.time,
           description: action.description ?? old.description,
           // Update other fields if present
         };
@@ -190,7 +136,7 @@ function applyChatActions(state: State, actions: ChatAction[]): State {
         newItem = {
           id,
           title: action.title || 'Untitled Routine',
-          time: action.scheduled_time ? (new Date(action.scheduled_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })) : null,
+          time: action.time ?? null,
           auto_complete: false,
           description: action.description,
           repeat_interval: 1
@@ -425,7 +371,7 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-const initialState: State = {
+export const initialState: State = {
   hydrated: false,
   conversation_id: null,
   chat: [],
@@ -476,9 +422,11 @@ type AppStateApi = {
   requestChatDraft: (text: string | null) => void;
   pendingChatDraft: string | null;
   clearChat: () => void;
+  clearAllData: () => Promise<void>;
 };
 
-import { computeTimeline } from './timeline';
+
+import { computeTimeline, sortTodoTasks, filterVisibleTasks } from './timeline';
 
 const Ctx = createContext<AppStateApi | null>(null);
 
@@ -636,19 +584,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     // --- Special Commands ---
     if (text.trim() === '/reset') {
       try {
-        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-        await AsyncStorage.clear();
-        dispatch({
-          type: 'hydrate',
-          state: { ...initialState, chat: [] } // Explicitly clear chat
-        });
-        alert('App data cleared. State reset.');
+        await clearAllData();
       } catch (e) {
         alert('Failed to reset: ' + e);
       }
       return;
     }
     // ------------------------
+
 
     dispatch({ type: 'pushChat', message: userMsg });
     dispatch({ type: 'setTyping', isTyping: true });
@@ -673,7 +616,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       reply = {
         conversation_id: state.conversation_id ?? makeId('conv'),
         assistant_text: 'Got it. (Offline/Error)',
-        actions: [{ type: 'create_task', title: text.trim() || 'Untitled', scheduled_time: null }],
+        actions: [{ type: 'upsert_routine_item', title: text.trim() || 'Untitled', time: null }],
       };
     } finally {
       dispatch({ type: 'setTyping', isTyping: false });
@@ -810,7 +753,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'setPendingChatDraft', text });
   }
 
+  async function clearAllData() {
+    await clear();
+    dispatch({
+      type: 'hydrate',
+      state: { ...initialState, chat: [] }
+    });
+    alert('App data cleared. State reset.');
+  }
+
   const api: AppStateApi = {
+
     hydrated: state.hydrated,
     conversation_id: state.conversation_id,
     chat: state.chat,
@@ -832,6 +785,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     updateRoutineItem,
     deleteRoutineItem,
     loadRoutineTemplate,
+
+    clearAllData,
 
     upsertProfileField,
     deleteProfileField,

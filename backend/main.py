@@ -203,6 +203,15 @@ async def serve_spa(full_path: str):
     index_path = os.path.join("static", "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
+    
+    # Debug information
+    print(f"Current CWD: {os.getcwd()}")
+    if os.path.exists("static"):
+        print(f"Listing static/: {os.listdir('static')}")
+        if os.path.exists("static/assets"):
+             print(f"Listing static/assets/: {os.listdir('static/assets')}")
+    else:
+        print("static/ directory does not exist")
         
     return {"error": "Frontend not found (static/index.html missing)"}
 

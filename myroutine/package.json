@@ -7,6 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web --port 6001",
+    "build:web": "expo export -p web",
     "test": "jest"
   },
   "jest": {

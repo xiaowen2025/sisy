@@ -14,11 +14,14 @@ import Reanimated, {
   Extrapolation,
   useSharedValue,
   withSpring,
-  runOnJS
+  runOnJS,
+  useDerivedValue
 } from 'react-native-reanimated';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { GestureDetector, Gesture, TouchableOpacity } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 
 import { Text, View } from '@/components/Themed';
 import { useAppState } from '@/lib/appState';
@@ -33,6 +36,7 @@ import { Task } from '@/lib/types';
 function formatTimeLabel(iso: string | null): string {
   if (!iso) return 'Now';
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return 'Invalid Time';
   // Keep it simple & local.
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
@@ -41,43 +45,44 @@ function formatTimeLabel(iso: string | null): string {
 const TaskCard = ({
   task,
   index,
-  nowIndex,
-  translationY,
+  scrollY,
   onPress,
   onComplete,
   onReschedule
 }: {
   task: Task,
   index: number,
-  nowIndex: number,
-  translationY: SharedValue<number>,
+  scrollY: SharedValue<number>,
   onPress: () => void,
   onComplete: () => void,
   onReschedule: () => void
 }) => {
-  const isNow = index === nowIndex;
+  // Use scrollY instead of relative index logic
+  // We want the card to be at position `index * 90`
+  // The view is effectively "camera at scrollY", so position is `(index * 90) - scrollY`
+
+  const ITEM_HEIGHT = 90;
   const isCompleted = task.status === 'done';
 
-  // Relative position logic
-  // relativeIndex > 0 means "Next/Below", < 0 means "Past/Above"
-  const relativeIndex = nowIndex === -1 ? 0 : index - nowIndex;
-
   const animatedStyle = useAnimatedStyle(() => {
-    const drag = translationY.value;
+    // Current absolute position of this card in the list
+    const cardY = index * ITEM_HEIGHT;
+    // Where it should be relative to the view center/top
+    // If scrollY matches cardY, this card is in the main focus spot (0 offset)
+    const relativeY = cardY - scrollY.value;
 
-    const spacing = 90;
-    const baseTransY = relativeIndex * spacing;
-    const finalY = baseTransY + drag;
+    const dist = Math.abs(relativeY);
 
-    const dist = Math.abs(finalY);
-
-    const scale = interpolate(dist, [0, spacing], [1, 0.95], Extrapolation.CLAMP);
-    const opacity = interpolate(dist, [0, spacing, spacing * 2.5], [1, 0.4, 0], Extrapolation.CLAMP);
+    // Scale down as it moves away
+    const scale = interpolate(dist, [0, ITEM_HEIGHT], [1, 0.95], Extrapolation.CLAMP);
+    // User requested "only display 3 maximal".
+    const opacity = interpolate(dist, [0, ITEM_HEIGHT, ITEM_HEIGHT * 1.6], [1, 0.5, 0], Extrapolation.CLAMP);
+    // Higher zIndex for closer items
     const zIndex = 100 - Math.round(dist);
 
     return {
       transform: [
-        { translateY: finalY },
+        { translateY: relativeY },
         { scale: scale }
       ],
       opacity,
@@ -98,7 +103,17 @@ const TaskCard = ({
         {task.title}
       </Text>
       {isCompleted && (
-        <Ionicons name="checkmark-circle" size={24} color={Colors.light.tint} style={{ position: 'absolute', right: 0, top: 18 }} />
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+            onComplete();
+          }}
+          style={{ position: 'absolute', right: 0, top: 18 }}
+        >
+          <Ionicons name="checkmark-circle" size={24} color={Colors.light.tint} />
+        </Pressable>
       )}
     </View>
   );
@@ -157,9 +172,9 @@ const TaskCard = ({
             }
           }}
         >
-          <Pressable onPress={onPress}>
+          <TouchableOpacity onPress={onPress} activeOpacity={1}>
             {innerCard}
-          </Pressable>
+          </TouchableOpacity>
         </ReanimatedSwipeable>
       </Reanimated.View>
     );
@@ -175,7 +190,7 @@ const TaskCard = ({
 import { RoutineItemModal } from '@/components/RoutineItemModal';
 
 export default function PresentScreen() {
-  const { nowTask, nextTask, pastTask, timeline, completeTask, addLog, skipTask } = useAppState();
+  const { nowTask, timeline, completeTask, uncompleteTask, addLog, skipTask, routine } = useAppState();
   const [rescheduleVisible, setRescheduleVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [completionVisible, setCompletionVisible] = useState(false);
@@ -184,47 +199,95 @@ export default function PresentScreen() {
   // Track which task is being acted upon (Reschedule/Detail)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-  const colorScheme = useColorScheme();
+  const ITEM_HEIGHT = 90;
 
-  // Vertical Scroll State
-  const translationY = useSharedValue(0);
-  const isDragging = useSharedValue(false);
+  // Empty State for no routine at all
+  if (routine.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.card, { alignItems: 'center', paddingHorizontal: 40 }]}>
+          <Text style={[styles.title, { textAlign: 'center', fontSize: 28 }]}>
+            Let's craft your perfect routine.
+          </Text>
+          <Text style={{ marginTop: 16, fontSize: 16, textAlign: 'center', opacity: 0.6 }}>
+            Head to the chat to get started.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
-  // ... (previous useEffects remain unchanged) ...
+  // Find index of 'Now' task in timeline logic
+  // We compute it fresh each render to know where 'now' is
+  const currentNowIndex = timeline.findIndex(t => t.id === nowTask?.id);
+  // Fallback to 0 if no nowTask
+  const safeNowIndex = currentNowIndex === -1 ? 0 : currentNowIndex;
 
-  // Find index of 'Now' task in timeline
-  const nowIndex = timeline.findIndex(t => t.id === nowTask?.id);
+  // We maintain a focusedIndex in React state to know which items to render
+  // Initialize with safeNowIndex
+  const [focusedIndex, setFocusedIndex] = useState(safeNowIndex);
 
-  // Reset scroll when task changes
-  useEffect(() => {
-    translationY.value = withSpring(0);
-  }, [nowTask?.id]);
+  // Vertical Scroll State: Absolute position (e.g. index * 90)
+  const scrollY = useSharedValue(safeNowIndex * ITEM_HEIGHT);
+  const startScrollY = useSharedValue(0); // To store initial value on gesture start
 
-  // Safety: If the task changes (e.g. completed/skipped), close the detail view.
-  useEffect(() => {
-    setDetailVisible(false);
-  }, [nowTask?.id]);
+  // Sync scrollY and focusedIndex when the screen gains focus
+  // usage: user assumes state is reset to "Now" only when navigating TO this tab
+  useFocusEffect(
+    useCallback(() => {
+      // Re-find the latest now index
+      const freshNowIndex = timeline.findIndex(t => t.id === nowTask?.id);
+      const targetIndex = freshNowIndex === -1 ? 0 : freshNowIndex;
 
-  useEffect(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
-  }, [nowTask?.id, nextTask?.id]);
+      setFocusedIndex(targetIndex);
+      scrollY.value = withSpring(targetIndex * ITEM_HEIGHT);
+    }, [nowTask?.id, timeline]) // Depend on nowTask/timeline so if data changed while away, we reset
+  );
 
-  // --- Gestures ---
+  // Update focused index based on scroll position for rendering optimization
+  // We use useDerivedValue to track it on UI thread, but we need to update JS state for rendering range.
+  // Using a listener or runOnJS in gesture end is cleaner.
+
   const panGesture = Gesture.Pan()
     .activeOffsetY([-10, 10])
     .onBegin(() => {
-      isDragging.value = true;
+      startScrollY.value = scrollY.value;
     })
     .onUpdate((e) => {
-      translationY.value = e.translationY * 0.5;
+      // -translationY because dragging UP means moving DOWN the list (view moves up, scroll value increases)
+      // Actually standard scroll: Drag Up -> Content moves Up -> We see items below.
+      // If index 0 is at top, index 1 is at 90.
+      // To see index 1, we need scrollY to increase to 90.
+      // Dragging Up (negative translation) should INCREASE scrollY.
+      scrollY.value = startScrollY.value - e.translationY;
     })
-    .onEnd(() => {
-      isDragging.value = false;
-      translationY.value = withSpring(0, { stiffness: 150, damping: 20 });
+    .onEnd((e) => {
+      // Snap to nearest item
+      // Predict end position with velocity
+      const velocity = -e.velocityY * 0.2; // slight momentum factor
+      const projectedY = scrollY.value + velocity;
+
+      // Calculate target index
+      const rawIndex = Math.round(projectedY / ITEM_HEIGHT);
+
+      // Clamp index to 0..length-1
+      const maxIndex = Math.max(0, timeline.length - 1);
+      const targetIndex = Math.min(Math.max(0, rawIndex), maxIndex);
+
+      const targetY = targetIndex * ITEM_HEIGHT;
+
+      scrollY.value = withSpring(targetY, { stiffness: 150, damping: 20 });
+
+      // Update JS state for rendering optimization
+      runOnJS(setFocusedIndex)(targetIndex);
     });
 
   const handleQuickComplete = (task: Task) => {
-    completeTask(task.id);
+    if (task.status === 'done') {
+      uncompleteTask(task.id);
+    } else {
+      completeTask(task.id);
+    }
   };
 
   const handleCompleteWithComment = (task: Task) => {
@@ -242,6 +305,7 @@ export default function PresentScreen() {
 
   const handleReschedule = (task: Task) => {
     setSelectedTask(task);
+    setDetailVisible(false);
     setRescheduleVisible(true);
   };
 
@@ -269,23 +333,22 @@ export default function PresentScreen() {
     setDetailVisible(true);
   };
 
+  const allCaughtUp = timeline.length > 0 && timeline.filter(task => task.status === 'todo').length === 0;
+
   return (
     <GestureDetector gesture={panGesture}>
       <View style={styles.container}>
         <View style={styles.stackWrapper}>
 
-          {timeline.map((task, index) => {
-            const VISIBILITY_WINDOW = 1;
-            // Limit visibility to 3 items: Now +/- 1 (User request: "3 is enough")
-            if (nowIndex !== -1 && Math.abs(index - nowIndex) > VISIBILITY_WINDOW) return null;
+          {!allCaughtUp && timeline.map((task, index) => {
+
 
             return (
               <TaskCard
                 key={task.id}
                 task={task}
                 index={index}
-                nowIndex={nowIndex}
-                translationY={translationY}
+                scrollY={scrollY}
                 onPress={() => handlePress(task)}
                 onComplete={() => handleQuickComplete(task)}
                 onReschedule={() => handleReschedule(task)}
@@ -293,13 +356,13 @@ export default function PresentScreen() {
             );
           })}
 
-          {timeline.length === 0 && (
-            <View style={styles.card}>
-              <Text style={styles.title}>All caught up. Enjoy your moment.</Text>
-            </View>
-          )}
-
         </View>
+
+        {allCaughtUp && (
+          <View style={styles.card}>
+            <Text style={styles.title}>All caught up. Enjoy your moment.</Text>
+          </View>
+        )}
 
         <RescheduleModal
           visible={rescheduleVisible}
@@ -318,7 +381,7 @@ export default function PresentScreen() {
             if (selectedTask || nowTask) handleSkip(selectedTask || nowTask!, comment);
           }}
           onReschedule={(comment) => {
-            if (selectedTask || nowTask) handleReschedule(selectedTask || nowTask!); // Modal handles its own logic, assuming comment lost for now or passed if I modify handleReschedule
+            if (selectedTask || nowTask) handleReschedule(selectedTask || nowTask!);
           }}
           onEdit={() => {
             if (selectedTask || nowTask) handleEditRoutine(selectedTask || nowTask!);
@@ -406,3 +469,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
 });
+
+

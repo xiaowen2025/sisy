@@ -12,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function SettingsScreen() {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
-    const { loadRoutineTemplate, loadWellnessTemplate, routine, profile, importRoutine, importProfile, logs } = useAppState();
+    const { loadRoutineTemplate, routine, profile, importRoutine, importProfile, logs, clearAllData } = useAppState();
+
 
     const [importVisible, setImportVisible] = useState(false);
     const [importMode, setImportMode] = useState<'routine' | 'profile'>('routine');
@@ -20,9 +21,8 @@ export default function SettingsScreen() {
 
     // Confirmation state for Default Template
     const [defaultConfirmVisible, setDefaultConfirmVisible] = useState(false);
-    // Confirmation state for Wellness Template
-    const [wellnessConfirmVisible, setWellnessConfirmVisible] = useState(false);
-    // Selection state for Template (routing to either default or wellness)
+
+    // Selection state for Template
     const [templateSelectionVisible, setTemplateSelectionVisible] = useState(false);
 
     function confirmLoadDefault() {
@@ -35,15 +35,7 @@ export default function SettingsScreen() {
         }
     }
 
-    function confirmLoadWellness() {
-        setWellnessConfirmVisible(false);
-        loadWellnessTemplate();
-        if (Platform.OS === 'web') {
-            window.alert('Loaded!');
-        } else {
-            Alert.alert('Loaded!');
-        }
-    }
+
 
     async function handleExportRoutine() {
         const json = JSON.stringify(routine, null, 2);
@@ -67,6 +59,28 @@ export default function SettingsScreen() {
         setImportVisible(false);
         setImportText('');
     }
+
+    function handleClearData() {
+        if (Platform.OS === 'web') {
+            if (window.confirm('Are you sure? This will delete all your data permanently.\n\nThis action cannot be undone.')) {
+                clearAllData();
+            }
+        } else {
+            Alert.alert(
+                'Clear All Data',
+                'Are you sure? This will delete all your data permanently.\n\nThis action cannot be undone.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: clearAllData
+                    }
+                ]
+            );
+        }
+    }
+
 
     const borderColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
 
@@ -156,6 +170,19 @@ export default function SettingsScreen() {
                     </View>
                 </View>
 
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>Danger Zone</Text>
+                    <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+                        <SettingsRow
+                            icon="trash"
+                            label="Clear All Data"
+                            onPress={handleClearData}
+                            destructive
+                        />
+                    </View>
+                </View>
+
+
                 <View style={{ height: 100 }} />
 
                 <Modal animationType="slide" visible={importVisible} presentationStyle="pageSheet" onRequestClose={() => setImportVisible(false)}>
@@ -209,12 +236,7 @@ export default function SettingsScreen() {
                                 >
                                     <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Basic Routine</Text>
                                 </Pressable>
-                                <Pressable
-                                    onPress={() => { setTemplateSelectionVisible(false); setWellnessConfirmVisible(true); }}
-                                    style={{ padding: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: borderColor }}
-                                >
-                                    <Text style={{ color: theme.tint, fontSize: 16, fontWeight: '600' }}>Wellness Routine</Text>
-                                </Pressable>
+
                                 <Pressable
                                     onPress={() => setTemplateSelectionVisible(false)}
                                     style={{ padding: 16, alignItems: 'center' }}
@@ -255,34 +277,7 @@ export default function SettingsScreen() {
                     </View>
                 </Modal>
 
-                {/* Wellness Confirmation Modal - Custom UI */}
-                <Modal animationType="fade" transparent visible={wellnessConfirmVisible} onRequestClose={() => setWellnessConfirmVisible(false)}>
-                    <View style={styles.centeredModalOverlay}>
-                        <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
-                            <View style={styles.alertContent}>
-                                <Text style={[styles.alertTitle, { color: theme.text }]}>Load Wellness Template?</Text>
-                                <Text style={[styles.alertMessage, { color: theme.text }]}>
-                                    This will replace your current routine structure with a wellness-focused schedule.
-                                </Text>
-                            </View>
 
-                            <View style={[styles.alertButtons, { borderTopColor: borderColor }]}>
-                                <Pressable
-                                    onPress={() => setWellnessConfirmVisible(false)}
-                                    style={styles.alertButton}
-                                >
-                                    <Text style={[styles.alertButtonText, { color: theme.text, opacity: 0.7 }]}>Cancel</Text>
-                                </Pressable>
-                                <Pressable
-                                    onPress={confirmLoadWellness}
-                                    style={[styles.alertButton, { borderLeftWidth: 1, borderLeftColor: borderColor }]}
-                                >
-                                    <Text style={[styles.alertButtonText, { color: theme.tint, fontWeight: '600' }]}>Load</Text>
-                                </Pressable>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
             </ScrollView >
         </SafeAreaView>
     );

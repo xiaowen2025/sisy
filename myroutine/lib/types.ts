@@ -23,6 +23,7 @@ export type RoutineItem = {
   time: string | null;
   auto_complete: boolean;
   description?: string;
+  previousDescription?: string; // Stores last version for revert
   repeat_interval?: number; // 1 = daily, 3 = every 3 days, etc.
 };
 
@@ -30,6 +31,7 @@ export type ProfileFieldSource = 'user' | 'learned';
 export type ProfileField = {
   key: string;
   value: string;
+  previousValue?: string; // Stores last version for revert
   group?: string;
   source: ProfileFieldSource;
   updated_at: Iso8601;
@@ -57,16 +59,6 @@ export type Log = {
 
 export type ChatAction =
   | {
-    type: 'create_task';
-    title: string;
-    scheduled_time: Iso8601 | null;
-  }
-  | {
-    type: 'suggest_reschedule';
-    task_id: string;
-    scheduled_time: Iso8601 | null;
-  }
-  | {
     type: 'upsert_profile_field';
     key: string;
     value: string;
@@ -74,26 +66,11 @@ export type ChatAction =
     source?: ProfileFieldSource;
   }
   | {
-    type: 'create_routine_item';
+    type: 'upsert_routine_item';
+    id?: string;
     title: string;
-    scheduled_time?: string | null;
-    status?: string | null;
+    time?: string | null;
     description?: string | null;
-  }
-  | {
-    type: 'update_routine_item';
-    id: string;
-    title?: string;
-    scheduled_time?: string | null;
-    status?: string | null;
-    description?: string | null;
-  }
-  | {
-    type: 'upsert_profile_field';
-    key: string;
-    value: string;
-    group?: string;
-    source?: ProfileFieldSource;
   };
 
 export type ChatSendRequest = {

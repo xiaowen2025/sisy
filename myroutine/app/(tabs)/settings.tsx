@@ -21,6 +21,8 @@ export default function SettingsScreen() {
 
     // Confirmation state for Default Template
     const [defaultConfirmVisible, setDefaultConfirmVisible] = useState(false);
+    // Confirmation state for Clear Data
+    const [clearConfirmVisible, setClearConfirmVisible] = useState(false);
 
     // Selection state for Template
     const [templateSelectionVisible, setTemplateSelectionVisible] = useState(false);
@@ -61,24 +63,12 @@ export default function SettingsScreen() {
     }
 
     function handleClearData() {
-        if (Platform.OS === 'web') {
-            if (window.confirm('Are you sure? This will delete all your data permanently.\n\nThis action cannot be undone.')) {
-                clearAllData();
-            }
-        } else {
-            Alert.alert(
-                'Clear All Data',
-                'Are you sure? This will delete all your data permanently.\n\nThis action cannot be undone.',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                        text: 'Delete',
-                        style: 'destructive',
-                        onPress: clearAllData
-                    }
-                ]
-            );
-        }
+        setClearConfirmVisible(true);
+    }
+
+    function confirmClearData() {
+        setClearConfirmVisible(false);
+        clearAllData();
     }
 
 
@@ -271,6 +261,35 @@ export default function SettingsScreen() {
                                     style={[styles.alertButton, { borderLeftWidth: 1, borderLeftColor: borderColor }]}
                                 >
                                     <Text style={[styles.alertButtonText, { color: theme.tint, fontWeight: '600' }]}>Load</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Clear Data Confirmation Modal */}
+                <Modal animationType="fade" transparent visible={clearConfirmVisible} onRequestClose={() => setClearConfirmVisible(false)}>
+                    <View style={styles.centeredModalOverlay}>
+                        <View style={[styles.alertBox, { backgroundColor: theme.cardBackground }]}>
+                            <View style={styles.alertContent}>
+                                <Text style={[styles.alertTitle, { color: theme.text }]}>Clear All Data</Text>
+                                <Text style={[styles.alertMessage, { color: theme.text }]}>
+                                    Are you sure? This will delete all your data permanently. This action cannot be undone.
+                                </Text>
+                            </View>
+
+                            <View style={[styles.alertButtons, { borderTopColor: borderColor }]}>
+                                <Pressable
+                                    onPress={() => setClearConfirmVisible(false)}
+                                    style={styles.alertButton}
+                                >
+                                    <Text style={[styles.alertButtonText, { color: theme.text, opacity: 0.7 }]}>Cancel</Text>
+                                </Pressable>
+                                <Pressable
+                                    onPress={confirmClearData}
+                                    style={[styles.alertButton, { borderLeftWidth: 1, borderLeftColor: borderColor }]}
+                                >
+                                    <Text style={[styles.alertButtonText, { color: '#ef4444', fontWeight: '600' }]}>Delete</Text>
                                 </Pressable>
                             </View>
                         </View>

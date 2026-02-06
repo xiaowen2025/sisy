@@ -43,6 +43,7 @@ export function RescheduleModal({ visible, onClose, taskId }: Props) {
     return (
         <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
             <View style={styles.overlay}>
+                <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
                 <View style={[styles.sheet, { backgroundColor: theme.background }]}>
                     <Text style={styles.title}>Reschedule</Text>
 

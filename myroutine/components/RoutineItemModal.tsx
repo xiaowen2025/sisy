@@ -8,6 +8,7 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAppState } from '@/lib/appState';
 import { RoutineItem } from '@/lib/types';
+import { TimePicker } from './TimePicker';
 
 
 type Props = {
@@ -149,28 +150,30 @@ export function RoutineItemModal({ visible, onClose, itemId }: Props) {
 
                             <View style={styles.rowInputs}>
                                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                                    <Text style={styles.label}>Time (HH:MM)</Text>
-                                    <TextInput
-                                        style={inputStyle}
-                                        value={item.time || ''}
-                                        onChangeText={(t) => setItem({ ...item, time: t })}
-                                        placeholder="07:00"
-                                        placeholderTextColor="#999"
-                                    />
+                                    <Text style={styles.label}>Time</Text>
+                                    <View style={{ alignItems: 'flex-start' }}>
+                                        <TimePicker
+                                            value={item.time || '07:00'}
+                                            onChange={(t: string) => setItem({ ...item, time: t })}
+                                        />
+                                    </View>
                                 </View>
                                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                                    <Text style={styles.label}>Repeat (Days)</Text>
-                                    <TextInput
-                                        style={inputStyle}
-                                        value={item.repeat_interval ? String(item.repeat_interval) : '1'}
-                                        keyboardType="numeric"
-                                        onChangeText={(t) => {
-                                            const n = parseInt(t, 10);
-                                            setItem({ ...item, repeat_interval: isNaN(n) ? 1 : n });
-                                        }}
-                                        placeholder="1"
-                                        placeholderTextColor="#999"
-                                    />
+                                    <Text style={styles.label}>Repeat</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <TextInput
+                                            style={[inputStyle, { width: 60, textAlign: 'center' }]}
+                                            value={item.repeat_interval ? String(item.repeat_interval) : '1'}
+                                            keyboardType="numeric"
+                                            onChangeText={(t) => {
+                                                const n = parseInt(t, 10);
+                                                setItem({ ...item, repeat_interval: isNaN(n) ? 1 : n });
+                                            }}
+                                            placeholder="1"
+                                            placeholderTextColor="#999"
+                                        />
+                                        <Text style={{ fontSize: 16, color: theme.text }}>days</Text>
+                                    </View>
                                 </View>
                             </View>
 

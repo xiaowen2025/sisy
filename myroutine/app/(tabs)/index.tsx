@@ -201,22 +201,6 @@ export default function PresentScreen() {
 
   const ITEM_HEIGHT = 90;
 
-  // Empty State for no routine at all
-  if (routine.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={[styles.card, { alignItems: 'center', paddingHorizontal: 40 }]}>
-          <Text style={[styles.title, { textAlign: 'center', fontSize: 28 }]}>
-            Let's craft your perfect routine.
-          </Text>
-          <Text style={{ marginTop: 16, fontSize: 16, textAlign: 'center', opacity: 0.6 }}>
-            Head to the chat to get started.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
   // Find index of 'Now' task in timeline logic
   // We compute it fresh each render to know where 'now' is
   const currentNowIndex = timeline.findIndex(t => t.id === nowTask?.id);
@@ -332,6 +316,19 @@ export default function PresentScreen() {
     setSelectedTask(task);
     setDetailVisible(true);
   };
+
+  // Empty State for no routine at all
+  if (routine.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.card, { alignItems: 'center', paddingHorizontal: 40 }]}>
+          <Text style={[styles.title, { textAlign: 'center', fontSize: 28 }]}>
+            Let's craft your perfect routine.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   const allCaughtUp = timeline.length > 0 && timeline.filter(task => task.status === 'todo').length === 0;
 

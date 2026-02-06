@@ -32,7 +32,7 @@
         "id": "3",
         "profile": {},
         "routine": [],
-        "message": "hey im sarah, 35, software engineer. i love reading & hiking. been feeling kinda overwhelmed lately with work ugh, want to start a better morning routine to get my day going with more energy. also fyi i have a nut allergy",
+        "message": "I'm Sarah, 35, software engineer. I love reading & hiking. Been feeling kinda overwhelmed lately with work, want to start a better morning routine to get my day going with more energy. I have iron deficiency",
         "expected_response_guidance": "the agent should update the profile correctly",
         "category": "update_profile"
     },

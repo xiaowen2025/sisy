@@ -49,12 +49,17 @@ export default function MeScreen() {
     const list: ListItem[] = [];
     if (profile.length === 0) return list;
 
-    let currentGroup = profile[0].group || 'Other';
+    // Sort profile: "Basics" first, others preserve order
+    const basics = profile.filter(f => (f.group || 'Other') === 'Basics');
+    const others = profile.filter(f => (f.group || 'Other') !== 'Basics');
+    const sortedProfile = [...basics, ...others];
+
+    let currentGroup = sortedProfile[0].group || 'Other';
 
     // Add first header
     list.push({ type: 'header', group: currentGroup, id: `header-${currentGroup}-0` });
 
-    profile.forEach((f, i) => {
+    sortedProfile.forEach((f, i) => {
       const g = f.group || 'Other';
       if (g !== currentGroup) {
         // Close previous group with footer

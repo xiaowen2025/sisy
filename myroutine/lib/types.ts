@@ -71,6 +71,8 @@ export type ChatAction =
     title: string;
     time?: string | null;
     description?: string | null;
+    repeat_interval?: number | null;
+    auto_complete?: boolean | null;
   };
 
 export type ChatSendRequest = {

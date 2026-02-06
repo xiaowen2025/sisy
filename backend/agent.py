@@ -67,6 +67,8 @@ def upsert_routine_item(
     time: str | None = None,
     description: str | None = None,
     id: str | None = None,
+    repeat_interval: int | None = None,
+    auto_complete: bool | None = None,
 ) -> str:
     """Create or update a routine item in the user's schedule.
     
@@ -75,6 +77,8 @@ def upsert_routine_item(
         time: Time in HH:MM format (24-hour), e.g., '08:00' for 8am, '14:30' for 2:30pm
         description: Detailed description or steps for this routine item
         id: The ID of an existing routine item to update. If not provided, creates a new item.
+        repeat_interval: Number of days between repetitions (default: 1 for daily)
+        auto_complete: Whether the task should auto-complete (default: false)
     
     Returns:
         Confirmation message

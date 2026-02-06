@@ -114,6 +114,18 @@ export default function MeScreen() {
     setNewValue('');
   };
 
+  const moveField = (key: string, direction: number) => {
+    const index = profile.findIndex(f => f.key === key);
+    if (index === -1) return;
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= profile.length) return;
+
+    const newProfile = [...profile];
+    const [removed] = newProfile.splice(index, 1);
+    newProfile.splice(newIndex, 0, removed);
+    setProfile(newProfile);
+  };
+
   const handleCreateGroup = () => {
     const name = newGroupTempName.trim();
     if (!name) return;
@@ -247,6 +259,12 @@ export default function MeScreen() {
 
           {isSelected && !isActive && (
             <View style={styles.rowActions}>
+              <Pressable onPress={() => moveField(f.key, -1)} style={styles.iconButton}>
+                <FontAwesome name="chevron-up" size={12} color={theme.text} style={{ opacity: 0.5 }} />
+              </Pressable>
+              <Pressable onPress={() => moveField(f.key, 1)} style={styles.iconButton}>
+                <FontAwesome name="chevron-down" size={12} color={theme.text} style={{ opacity: 0.5 }} />
+              </Pressable>
               {f.previousValue && (
                 <Pressable onPress={() => revertProfileValue(f.key)} style={styles.iconButton}>
                   <FontAwesome name="undo" size={14} color="#ff9500" />
@@ -264,13 +282,9 @@ export default function MeScreen() {
             </View>
           )}
 
-          {!isSelected && !isActive && (
-            <Pressable onPressIn={drag} style={{ padding: 8 }}>
-              <FontAwesome name="bars" size={12} color={theme.text} style={{ opacity: 0.2 }} />
-            </Pressable>
-          )}
+
         </View>
-        <View style={[styles.separator, { backgroundColor: borderColor }]} />
+        <View style={[styles.separator, { backgroundColor: 'transparent' }]} />
       </ScaleDecorator>
     );
   };
@@ -318,73 +332,75 @@ export default function MeScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      <DraggableFlatList
-        data={data}
-        onDragEnd={onDragEnd}
-        keyExtractor={keyExtractor}
-        containerStyle={{ flex: 1 }}
-        // @ts-ignore
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        renderItem={(params) => {
-          const { item } = params;
-          if (item.type === 'header') return renderHeader(item);
-          if (item.type === 'field') return renderField(params as RenderItemParams<FieldItem>);
-          if (item.type === 'footer') return renderFooter(item);
-          if (item.type === 'placeholder') return <View style={{ height: 100 }} />;
-          return null;
-        }}
-      />
+    <Pressable style={{ flex: 1 }} onPress={() => setFocusedAttribute(null)}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <DraggableFlatList
+          data={data}
+          onDragEnd={onDragEnd}
+          keyExtractor={keyExtractor}
+          containerStyle={{ flex: 1 }}
+          // @ts-ignore
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          renderItem={(params) => {
+            const { item } = params;
+            if (item.type === 'header') return renderHeader(item);
+            if (item.type === 'field') return renderField(params as RenderItemParams<FieldItem>);
+            if (item.type === 'footer') return renderFooter(item);
+            if (item.type === 'placeholder') return <Pressable onPress={() => setFocusedAttribute(null)} style={{ height: 100, flex: 1 }} />;
+            return null;
+          }}
+        />
 
-      {/* Add new Group Button (Floating or at bottom?) 
+        {/* Add new Group Button (Floating or at bottom?) 
            Since DraggableFlatList takes full space, we can put this outside.
            Or adds as a footer to the whole list.
            Let's put it at the bottom.
        */}
-      {!creatingGroup && (
-        <View style={styles.floatingBtnContainer}>
-          <Pressable
-            onPress={() => { setCreatingGroup(true); resetAddState(); }}
-            style={[styles.newGroupBtn, { backgroundColor: theme.tint }]}
-          >
-            <FontAwesome name="plus" size={16} color="#fff" />
-          </Pressable>
-        </View>
-      )}
+        {!creatingGroup && (
+          <View style={styles.floatingBtnContainer}>
+            <Pressable
+              onPress={() => { setCreatingGroup(true); resetAddState(); }}
+              style={[styles.newGroupBtn, { backgroundColor: theme.tint }]}
+            >
+              <FontAwesome name="plus" size={16} color="#fff" />
+            </Pressable>
+          </View>
+        )}
 
-      {/* Modal/Overlay for New Group? Or just render it in list? 
+        {/* Modal/Overlay for New Group? Or just render it in list? 
            For complexity, let's use a simple overlay or just conditional render at bottom 
            if we didn't use DraggableFlatlist. 
            With DraggableFlatList, it's easier to use a modal or overlay.
            Let's use a simple absolute view for "New Group" creation form.
        */}
-      {creatingGroup && (
-        <View style={[styles.newGroupOverlay, { backgroundColor: theme.background, borderColor: theme.tint }]}>
-          <Text style={[styles.label, { marginBottom: 12 }]}>New Group</Text>
-          <TextInput
-            value={newGroupTempName}
-            onChangeText={setNewGroupTempName}
-            placeholder="GROUP NAME"
-            placeholderTextColor={placeholderColor}
-            style={[styles.headerInput, { color: theme.text, marginBottom: 16, width: '100%' }]}
-            autoFocus
-          />
-          <View style={styles.row}>
-            <TextInput value={newKey} onChangeText={setNewKey} placeholder="Attr" placeholderTextColor={placeholderColor} style={[styles.smallInput, { color: theme.text, flex: 1, marginRight: 8 }]} />
-            <TextInput value={newValue} onChangeText={setNewValue} placeholder="Value" placeholderTextColor={placeholderColor} style={[styles.smallInput, { color: theme.text, flex: 1 }]} />
+        {creatingGroup && (
+          <View style={[styles.newGroupOverlay, { backgroundColor: theme.background, borderColor: theme.tint }]}>
+            <Text style={[styles.label, { marginBottom: 12 }]}>New Group</Text>
+            <TextInput
+              value={newGroupTempName}
+              onChangeText={setNewGroupTempName}
+              placeholder="GROUP NAME"
+              placeholderTextColor={placeholderColor}
+              style={[styles.headerInput, { color: theme.text, marginBottom: 16, width: '100%' }]}
+              autoFocus
+            />
+            <View style={styles.row}>
+              <TextInput value={newKey} onChangeText={setNewKey} placeholder="Attr" placeholderTextColor={placeholderColor} style={[styles.smallInput, { color: theme.text, flex: 1, marginRight: 8 }]} />
+              <TextInput value={newValue} onChangeText={setNewValue} placeholder="Value" placeholderTextColor={placeholderColor} style={[styles.smallInput, { color: theme.text, flex: 1 }]} />
+            </View>
+            <View style={[styles.row, { marginTop: 16, justifyContent: 'flex-end', paddingVertical: 0 }]}>
+              <Pressable onPress={() => setCreatingGroup(false)} style={{ marginRight: 16 }}>
+                <Text style={{ color: theme.text, fontWeight: '600' }}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={handleCreateGroup} style={[styles.deleteConfirmBtn, { backgroundColor: theme.tint }]}>
+                <Text style={styles.deleteBtnText}>Create</Text>
+              </Pressable>
+            </View>
           </View>
-          <View style={[styles.row, { marginTop: 16, justifyContent: 'flex-end', paddingVertical: 0 }]}>
-            <Pressable onPress={() => setCreatingGroup(false)} style={{ marginRight: 16 }}>
-              <Text style={{ color: theme.text, fontWeight: '600' }}>Cancel</Text>
-            </Pressable>
-            <Pressable onPress={handleCreateGroup} style={[styles.deleteConfirmBtn, { backgroundColor: theme.tint }]}>
-              <Text style={styles.deleteBtnText}>Create</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-    </SafeAreaView>
+        )}
+      </SafeAreaView>
+    </Pressable>
   );
 }
 

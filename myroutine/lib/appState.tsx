@@ -114,9 +114,9 @@ export function applyChatActions(state: State, actions: ChatAction[]): State {
           title: action.title ?? old.title,
           time: action.time ?? old.time,
           description: action.description ?? old.description,
-          // Update other fields if present
+          repeat_interval: action.repeat_interval ?? old.repeat_interval,
+          auto_complete: action.auto_complete ?? old.auto_complete,
         };
-        // If generic status update?
         const nextRoutine = next.routine.map(r => r.id === action.id ? newItem : r);
         next = { ...next, routine: sortRoutineItems(nextRoutine) };
 
@@ -137,9 +137,9 @@ export function applyChatActions(state: State, actions: ChatAction[]): State {
           id,
           title: action.title || 'Untitled Routine',
           time: action.time ?? null,
-          auto_complete: false,
+          auto_complete: action.auto_complete ?? false,
           description: action.description,
-          repeat_interval: 1
+          repeat_interval: action.repeat_interval ?? 1
         };
         next = { ...next, routine: sortRoutineItems([newItem, ...next.routine]) };
 

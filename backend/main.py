@@ -73,6 +73,8 @@ class ChatAction(BaseModel):
     time: str | None = None  # HH:MM format
     description: str | None = None
     id: str | None = None
+    repeat_interval: int | None = None  # Days between repetitions
+    auto_complete: bool | None = None   # Auto-complete flag
     
     # Profile fields
     key: str | None = None

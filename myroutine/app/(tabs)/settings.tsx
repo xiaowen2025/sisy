@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Alert, Modal, Platform, Pressable, StyleSheet, TextInput, View, ScrollView } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { Alert, Modal, Platform, Pressable, StyleSheet, TextInput, View, ScrollView, Switch } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import * as Clipboard from 'expo-clipboard';
 
@@ -26,6 +26,22 @@ export default function SettingsScreen() {
 
     // Selection state for Template
     const [templateSelectionVisible, setTemplateSelectionVisible] = useState(false);
+
+    // Toggle to hide completion logs without comments
+    const [hideEmptyCompletions, setHideEmptyCompletions] = useState(false);
+
+    // Filter logs based on toggle - hide task_complete logs without user comments
+    const filteredLogs = useMemo(() => {
+        if (!hideEmptyCompletions) return logs;
+        return logs.filter(log => {
+            // Keep all non-completion logs
+            if (log.related_action !== 'task_complete') return true;
+            // Logs without comments have format "Title - complete"
+            // Logs WITH comments have the user's actual comment text (no " - complete" suffix)
+            const isEmptyCompletion = log.content.endsWith(' - complete');
+            return !isEmptyCompletion;
+        });
+    }, [logs, hideEmptyCompletions]);
 
     function confirmLoadDefault() {
         setDefaultConfirmVisible(false);
@@ -139,14 +155,27 @@ export default function SettingsScreen() {
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>Audit Log</Text>
+                    <View style={styles.sectionHeaderRow}>
+                        <Text style={styles.sectionHeader}>Logs</Text>
+                        <View style={styles.toggleRow}>
+                            <Text style={[styles.toggleLabel, { color: theme.text }]}>Hide completions</Text>
+                            <Switch
+                                value={hideEmptyCompletions}
+                                onValueChange={setHideEmptyCompletions}
+                                trackColor={{ false: colorScheme === 'dark' ? '#333' : '#ddd', true: theme.tint }}
+                                thumbColor="#fff"
+                            />
+                        </View>
+                    </View>
                     <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
-                        {logs.length === 0 && (
+                        {filteredLogs.length === 0 && (
                             <View style={{ padding: 16 }}>
-                                <Text style={{ opacity: 0.5, fontSize: 13, color: theme.text }}>No recent activity.</Text>
+                                <Text style={{ opacity: 0.5, fontSize: 13, color: theme.text }}>
+                                    {logs.length === 0 ? 'No recent activity.' : 'No logs to show.'}
+                                </Text>
                             </View>
                         )}
-                        {logs.map((log, i) => (
+                        {filteredLogs.map((log, i) => (
                             <React.Fragment key={log.id}>
                                 {i > 0 && <View style={[styles.separator, { backgroundColor: borderColor, marginLeft: 16 }]} />}
                                 <View style={styles.logRow}>
@@ -325,6 +354,21 @@ const styles = StyleSheet.create({
         opacity: 0.5,
         marginBottom: 12,
         marginLeft: 4,
+    },
+    sectionHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    toggleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    toggleLabel: {
+        fontSize: 12,
+        opacity: 0.6,
     },
     card: {
         borderRadius: 16,

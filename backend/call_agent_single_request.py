@@ -39,7 +39,7 @@ def validate_action_for_frontend(action: dict) -> list[str]:
     errors = []
     action_type = action.get("type")
     
-    if action_type in ("upsert_routine_item", "create_routine_item", "update_routine_item"):
+    if action_type == "upsert_routine_item":
         time_value = action.get("time")
         if time_value is not None:
             if not is_valid_hhmm_format(time_value):

@@ -38,8 +38,8 @@ function TypingIndicator({ color }: { color: string }) {
 
 function SuggestionChips({ onSelect, theme }: { onSelect: (text: string) => void; theme: any }) {
   const chips = [
-    'Refine my Routine',
-    'Discuss Progress',
+    'Discuss my Routine',
+    'Get a Tip',
   ];
 
   return (
@@ -384,13 +384,108 @@ export function Chat({ bottomOffset = 64 }: { bottomOffset?: number }) {
                                   style={{
                                     body: {
                                       color: isUser ? '#fff' : theme.text,
-                                      fontSize: 16,
-                                      lineHeight: 24,
+                                      fontSize: 15,
+                                      lineHeight: 22,
                                     },
+                                    // Typography hierarchy
+                                    heading1: {
+                                      fontSize: 18,
+                                      fontWeight: '700',
+                                      marginTop: 12,
+                                      marginBottom: 6,
+                                      color: isUser ? '#fff' : theme.text,
+                                    },
+                                    heading2: {
+                                      fontSize: 16,
+                                      fontWeight: '600',
+                                      marginTop: 10,
+                                      marginBottom: 4,
+                                      color: isUser ? '#fff' : theme.text,
+                                    },
+                                    heading3: {
+                                      fontSize: 15,
+                                      fontWeight: '600',
+                                      marginTop: 8,
+                                      marginBottom: 4,
+                                      color: isUser ? '#fff' : theme.text,
+                                    },
+                                    // Paragraph spacing
+                                    paragraph: {
+                                      marginTop: 0,
+                                      marginBottom: 10,
+                                    },
+                                    // Lists with proper spacing
+                                    bullet_list: {
+                                      marginTop: 4,
+                                      marginBottom: 10,
+                                    },
+                                    ordered_list: {
+                                      marginTop: 4,
+                                      marginBottom: 10,
+                                    },
+                                    list_item: {
+                                      marginTop: 3,
+                                      marginBottom: 3,
+                                    },
+                                    bullet_list_icon: {
+                                      marginRight: 8,
+                                      color: isUser ? 'rgba(255,255,255,0.8)' : theme.tint,
+                                    },
+                                    ordered_list_icon: {
+                                      marginRight: 8,
+                                      color: isUser ? 'rgba(255,255,255,0.8)' : theme.tint,
+                                    },
+                                    // Code styling
+                                    code_inline: {
+                                      backgroundColor: isUser ? 'rgba(255,255,255,0.2)' : (colorScheme === 'dark' ? '#2c2c2e' : '#e8e8e8'),
+                                      color: isUser ? '#fff' : (colorScheme === 'dark' ? '#ff7b72' : '#d63384'),
+                                      paddingHorizontal: 5,
+                                      paddingVertical: 2,
+                                      borderRadius: 4,
+                                      fontSize: 14,
+                                      fontFamily: 'monospace',
+                                    },
+                                    code_block: {
+                                      backgroundColor: isUser ? 'rgba(255,255,255,0.15)' : (colorScheme === 'dark' ? '#1c1c1e' : '#f0f0f0'),
+                                      padding: 10,
+                                      borderRadius: 8,
+                                      marginVertical: 6,
+                                      fontFamily: 'monospace',
+                                      fontSize: 13,
+                                    },
+                                    fence: {
+                                      backgroundColor: isUser ? 'rgba(255,255,255,0.15)' : (colorScheme === 'dark' ? '#1c1c1e' : '#f0f0f0'),
+                                      padding: 10,
+                                      borderRadius: 8,
+                                      marginVertical: 6,
+                                    },
+                                    // Blockquote
+                                    blockquote: {
+                                      borderLeftWidth: 3,
+                                      borderLeftColor: isUser ? 'rgba(255,255,255,0.5)' : theme.tint,
+                                      paddingLeft: 10,
+                                      marginLeft: 0,
+                                      marginVertical: 6,
+                                      opacity: 0.9,
+                                    },
+                                    // Links
                                     link: {
                                       color: isUser ? '#fff' : theme.tint,
                                       textDecorationLine: 'underline',
-                                    }
+                                    },
+                                    // Emphasis
+                                    strong: {
+                                      fontWeight: '600',
+                                    },
+                                    em: {
+                                      fontStyle: 'italic',
+                                    },
+                                    // Horizontal rule
+                                    hr: {
+                                      marginVertical: 12,
+                                      backgroundColor: isUser ? 'rgba(255,255,255,0.3)' : (colorScheme === 'dark' ? '#333' : '#ddd'),
+                                      height: 1,
+                                    },
                                   }}>
                                   {m.text}
                                 </Markdown>

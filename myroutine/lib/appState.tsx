@@ -596,33 +596,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'pushChat', message: userMsg });
     dispatch({ type: 'setTyping', isTyping: true });
 
-    // Try backend if configured; otherwise fall back to a minimal local behavior.
-    let reply: ChatSendResponse | null = null;
-    try {
-      const context = {
-        profile: state.profile,
-        routine: state.routine
-      };
+    const context = {
+      profile: state.profile,
+      routine: state.routine
+    };
 
-      reply = await sendChatMessage({
-        conversation_id: state.conversation_id,
-        tab,
-        text,
-        imageUri,
-        user_context: JSON.stringify(context),
-        message_history: state.chat.slice(-10)
-      });
-    } catch {
-      reply = {
-        conversation_id: state.conversation_id ?? makeId('conv'),
-        assistant_text: 'Got it. (Offline/Error)',
-        actions: [{ type: 'upsert_routine_item', title: text.trim() || 'Untitled', time: null }],
-      };
-    } finally {
-      dispatch({ type: 'setTyping', isTyping: false });
-    }
+    const reply = await sendChatMessage({
+      conversation_id: state.conversation_id,
+      tab,
+      text,
+      imageUri,
+      user_context: JSON.stringify(context),
+      message_history: state.chat.slice(-10)
+    });
 
+    dispatch({ type: 'setTyping', isTyping: false });
     dispatch({ type: 'setConversationId', conversation_id: reply.conversation_id });
+
     const assistantMsg: ChatMessage = {
       id: makeId('msg'),
       role: 'assistant',
@@ -632,8 +622,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     };
     dispatch({ type: 'pushChat', message: assistantMsg });
 
-    // Apply actions locally so the frontend works before backend exists.
-    dispatch({ type: 'applyChatActions', actions: reply.actions });
+    if (reply.actions.length > 0) {
+      dispatch({ type: 'applyChatActions', actions: reply.actions });
+    }
   }
 
   function addLog(content: string, related_action: Log['related_action'], routine_item_id?: string) {

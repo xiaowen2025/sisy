@@ -93,8 +93,107 @@ export function RoutineItemModal({ visible, onClose, itemId }: Props) {
     const markdownStyles = {
         body: {
             color: theme.text,
+            fontSize: 15,
+            lineHeight: 22,
+        },
+        // Typography hierarchy
+        heading1: {
+            fontSize: 20,
+            fontWeight: '700' as const,
+            marginTop: 16,
+            marginBottom: 8,
+            color: theme.text,
+        },
+        heading2: {
+            fontSize: 18,
+            fontWeight: '600' as const,
+            marginTop: 14,
+            marginBottom: 6,
+            color: theme.text,
+        },
+        heading3: {
             fontSize: 16,
-            lineHeight: 24,
+            fontWeight: '600' as const,
+            marginTop: 12,
+            marginBottom: 4,
+            color: theme.text,
+        },
+        // Paragraph spacing
+        paragraph: {
+            marginTop: 0,
+            marginBottom: 12,
+        },
+        // Lists with proper indentation and spacing
+        bullet_list: {
+            marginTop: 4,
+            marginBottom: 12,
+        },
+        ordered_list: {
+            marginTop: 4,
+            marginBottom: 12,
+        },
+        list_item: {
+            marginTop: 4,
+            marginBottom: 4,
+        },
+        bullet_list_icon: {
+            marginRight: 8,
+            color: theme.tint,
+        },
+        ordered_list_icon: {
+            marginRight: 8,
+            color: theme.tint,
+        },
+        // Code styling
+        code_inline: {
+            backgroundColor: isDark ? '#2c2c2e' : '#f0f0f0',
+            color: isDark ? '#ff7b72' : '#d63384',
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+            borderRadius: 4,
+            fontSize: 14,
+            fontFamily: 'monospace',
+        },
+        code_block: {
+            backgroundColor: isDark ? '#1c1c1e' : '#f5f5f5',
+            padding: 12,
+            borderRadius: 8,
+            marginVertical: 8,
+            fontFamily: 'monospace',
+            fontSize: 13,
+        },
+        fence: {
+            backgroundColor: isDark ? '#1c1c1e' : '#f5f5f5',
+            padding: 12,
+            borderRadius: 8,
+            marginVertical: 8,
+        },
+        // Blockquote
+        blockquote: {
+            borderLeftWidth: 3,
+            borderLeftColor: theme.tint,
+            paddingLeft: 12,
+            marginLeft: 0,
+            marginVertical: 8,
+            opacity: 0.85,
+        },
+        // Links
+        link: {
+            color: theme.tint,
+            textDecorationLine: 'underline' as const,
+        },
+        // Emphasis
+        strong: {
+            fontWeight: '600' as const,
+        },
+        em: {
+            fontStyle: 'italic' as const,
+        },
+        // Horizontal rule
+        hr: {
+            marginVertical: 16,
+            backgroundColor: isDark ? '#333' : '#e0e0e0',
+            height: 1,
         },
     };
 

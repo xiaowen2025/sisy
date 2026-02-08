@@ -4,6 +4,7 @@ Uses tool calling for actions.
 """
 
 import json
+import logging
 import os
 import re
 import uuid
@@ -15,7 +16,9 @@ from opik.integrations.langchain import OpikTracer
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 from minimax_mcp.client import MinimaxAPIClient
 
 
@@ -137,7 +140,7 @@ class SiSyAgent:
         # Initialize MiniMax VLM Client
         self.vlm_client = MinimaxAPIClient(minimax_api_key, "https://api.minimax.io")
         
-        print("✓ SiSy Agent initialized")
+        logger.info("SiSy Agent initialized")
 
     def _strip_thinking_tags(self, content: str) -> str:
         """Remove <think>...</think> tags from the response content."""
@@ -157,7 +160,7 @@ class SiSyAgent:
             
             # Skip invalid/hallucinated tools
             if tool_name not in valid_tool_names:
-                print(f"[Agent] Warning: Skipping invalid tool call '{tool_name}'")
+                logger.warning(f"Skipping invalid tool call '{tool_name}'")
                 continue
                 
             # Start with the tool name as the action type
@@ -236,7 +239,7 @@ class SiSyAgent:
                 content = text
                 
             except Exception as e:
-                print(f"[Agent] VLM Error: {e}")
+                logger.error(f"VLM Error: {e}")
                 text = f"{text}\n\n[System Note: The user attached an image, but analysis failed.]"
                 content = text
 
@@ -276,12 +279,12 @@ class SiSyAgent:
         response_content = response.content if hasattr(response, 'content') else str(response)
         response_content = self._strip_thinking_tags(response_content)
         
-        print(f"[Agent] Initial response: {response_content[:100] if response_content else '(empty)'}...")
-        print(f"[Agent] Tool calls: {len(actions)} actions extracted")
+        logger.debug(f"Initial response: {response_content[:100] if response_content else '(empty)'}...")
+        logger.debug(f"Tool calls: {len(actions)} actions extracted")
         
         # If there are tool calls, we execute them in a loop to get a final conversational response
         if tool_calls:
-            print("[Agent] Tool calls present - executing tool loop to generating final response...")
+            logger.debug("Tool calls present - executing tool loop to generate final response...")
             
             # Add the AI message with tool calls to the conversation
             messages.append(response)
@@ -293,14 +296,14 @@ class SiSyAgent:
                     content=tool_result,
                     tool_call_id=tc["id"],
                 ))
-                print(f"[Agent] Tool '{tc['name']}' result: {tool_result}")
+                logger.debug(f"Tool '{tc['name']}' result: {tool_result}")
             
             # Call LLM again to get the final response
             final_response = await self._call_llm(messages)
             response_content = final_response.content if hasattr(final_response, 'content') else str(final_response)
             response_content = self._strip_thinking_tags(response_content)
             
-            print(f"[Agent] Final response after tool loop: {response_content[:100]}...")
+            logger.debug(f"Final response after tool loop: {response_content[:100]}...")
         
         return {
             "conversation_id": conversation_id or str(uuid.uuid4()),

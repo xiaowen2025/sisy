@@ -99,7 +99,7 @@ export default function TabLayout() {
           name="index"
           options={{
             title: 'Present',
-            tabBarIcon: ({ color }: { color: string }) => <TabBarIcon name="home" color={color} />,
+            tabBarIcon: ({ color }: { color: string }) => <TabBarIcon name="play" color={color} />,
           }}
           listeners={{
             tabPress: () => {

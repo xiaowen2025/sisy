@@ -2,6 +2,7 @@
 SiSy Backend - FastAPI server for AI chat with LangChain and Opik tracing.
 """
 
+import logging
 import os
 import json
 from contextlib import asynccontextmanager
@@ -10,14 +11,16 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from agent import SiSyAgent
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Initialize agent (will be set in lifespan)
 agent: SiSyAgent | None = None
@@ -34,7 +37,7 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("MINIMAX_API_KEY is not set")
     
     agent = SiSyAgent(minimax_api_key=api_key, opik_api_key=opik_key)
-    print("✓ SiSy Agent initialized")
+    logger.info("SiSy Agent initialized")
     yield
     # Cleanup
     if agent:
@@ -131,7 +134,7 @@ async def chat(
     if not agent:
         raise HTTPException(status_code=503, detail="Agent not initialized")
     
-    print(f"[Chat] Request from user_id: {user_id}")
+    logger.info(f"Chat request from user_id: {user_id}")
 
     # Parse user context if provided
     context_data = None
@@ -145,12 +148,12 @@ async def chat(
                     # If simple json.loads fails, it might be safe to try, or just log error
                     # But for now, let's assume valid JSON string is passed.
                     # One edge case: if it's already a dict (FastAPI/Pydantic magic?), but here it is defined as str.
-                    print(f"[Chat Warning] Failed to parse user_context JSON: {user_context}")
+                    logger.warning(f"Failed to parse user_context JSON: {user_context}")
             else:
                 # If it's somehow already an object? Unlikely given signature
                 context_data = user_context
         except Exception as e:
-            print(f"[Chat Warning] Error processing user_context: {e}")
+            logger.warning(f"Error processing user_context: {e}")
 
     # Parse message history if provided
     history_data = []
@@ -160,11 +163,11 @@ async def chat(
                 try:
                     history_data = json.loads(message_history)
                 except json.JSONDecodeError:
-                    print(f"[Chat Warning] Failed to parse message_history JSON: {message_history}")
+                    logger.warning(f"Failed to parse message_history JSON: {message_history}")
             else:
                 history_data = message_history
         except Exception as e:
-            print(f"[Chat Warning] Error processing message_history: {e}")
+            logger.warning(f"Error processing message_history: {e}")
 
     image_data = None
     if image:
@@ -181,14 +184,9 @@ async def chat(
         )
         return ChatSendResponse(**result)
     except Exception as e:
-        print(f"[Chat Error] {e}")
+        logger.error(f"Chat error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# Mount static files (frontend)
-# We mount at root but need to be careful not to shadow API routes
-# The order matters: API routes are defined first, so they take precedence.
-app.mount("/assets", StaticFiles(directory="static/assets"), name="assets")
 
 # Serve specific static files if needed (e.g. manifest, icons)
 # For a clean SPA, we usually serve index.html for everything else.
@@ -207,13 +205,13 @@ async def serve_spa(full_path: str):
         return FileResponse(index_path)
     
     # Debug information
-    print(f"Current CWD: {os.getcwd()}")
+    logger.debug(f"Current CWD: {os.getcwd()}")
     if os.path.exists("static"):
-        print(f"Listing static/: {os.listdir('static')}")
+        logger.debug(f"Listing static/: {os.listdir('static')}")
         if os.path.exists("static/assets"):
-             print(f"Listing static/assets/: {os.listdir('static/assets')}")
+             logger.debug(f"Listing static/assets/: {os.listdir('static/assets')}")
     else:
-        print("static/ directory does not exist")
+        logger.warning("static/ directory does not exist")
         
     return {"error": "Frontend not found (static/index.html missing)"}
 

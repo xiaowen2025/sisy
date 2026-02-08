@@ -14,11 +14,12 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import type { RoutineItem } from '@/lib/types';
 import { RoutineItemModal } from '@/components/RoutineItemModal';
+import { TimePicker } from '@/components/TimePicker';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RoutineScreen() {
-  const { routine, addRoutineItem, highlightedIds, acknowledgeHighlight } = useAppState();
+  const { routine, addRoutineItem, updateRoutineItem, highlightedIds, acknowledgeHighlight } = useAppState();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
 
@@ -27,11 +28,26 @@ export default function RoutineScreen() {
   // Modal State
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
+  // Time editing state
+  const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
+
   const handleInteraction = (id: string) => {
     if (highlightedIds.includes(id)) {
       acknowledgeHighlight([id]);
     }
     setEditingItemId(id);
+  };
+
+  const handleTimePress = (id: string) => {
+    if (highlightedIds.includes(id)) {
+      acknowledgeHighlight([id]);
+    }
+    setEditingTimeId(id);
+  };
+
+  const handleTimeChange = (id: string, newTime: string) => {
+    updateRoutineItem(id, { time: newTime });
+    setEditingTimeId(null);
   };
 
   return (
@@ -47,6 +63,9 @@ export default function RoutineScreen() {
               key={item.id}
               item={item}
               onPress={() => handleInteraction(item.id)}
+              onTimePress={() => handleTimePress(item.id)}
+              onTimeChange={(newTime) => handleTimeChange(item.id, newTime)}
+              isEditingTime={editingTimeId === item.id}
               theme={theme}
               isDark={colorScheme === 'dark'}
               isHighlighted={highlightedIds.includes(item.id)}
@@ -77,15 +96,22 @@ export default function RoutineScreen() {
   );
 }
 
+
 function TimelineItem({
   item,
   onPress,
+  onTimePress,
+  onTimeChange,
+  isEditingTime,
   theme,
   isDark,
   isHighlighted,
 }: {
   item: RoutineItem;
   onPress: () => void;
+  onTimePress: () => void;
+  onTimeChange: (time: string) => void;
+  isEditingTime: boolean;
   theme: typeof Colors.light;
   isDark: boolean;
   isHighlighted?: boolean;
@@ -96,10 +122,25 @@ function TimelineItem({
 
   return (
     <View style={styles.itemRow}>
-      {/* Time Column */}
-      <View style={styles.timeColumn}>
-        <Text style={styles.timeText}>{item.time || '--:--'}</Text>
-      </View>
+      {/* Time Column - Clickable */}
+      <Pressable
+        style={styles.timeColumn}
+        onPress={onTimePress}
+      >
+        {isEditingTime ? (
+          <TimePicker
+            value={item.time || '07:00'}
+            onChange={onTimeChange}
+          />
+        ) : (
+          <Text style={[
+            styles.timeText,
+            { color: theme.tint }
+          ]}>
+            {item.time || '--:--'}
+          </Text>
+        )}
+      </Pressable>
 
       {/* Connector Dot */}
       <View style={[styles.dot, {
@@ -149,6 +190,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   scrollContent: {
+    paddingTop: 30,
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
